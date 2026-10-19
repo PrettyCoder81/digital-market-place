@@ -253,7 +253,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
       {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
+          <Card sx={{height: '170px'}}>
             <CardContent sx={{ textAlign: 'center' }}>
               <AccountBalance sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
               <Typography variant="h4" color="primary" sx={{ fontWeight: 700 }}>
@@ -266,7 +266,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
           </Card>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
+          <Card sx={{height: '170px'}}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Percent sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
               <Typography variant="h4" color="secondary" sx={{ fontWeight: 700 }}>
@@ -279,7 +279,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
           </Card>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
+          <Card sx={{height: '170px'}}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Typography sx={{ fontSize: 40, mb: 1 }}>🏷️</Typography>
               <Typography variant="h4" color="warning.main" sx={{ fontWeight: 700 }}>
@@ -292,10 +292,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
           </Card>
         </Grid>
         <Grid size={{ xs: 12, sm: 6, md: 3 }}>
-          <Card>
+          <Card sx={{height: '170px'}}>
             <CardContent sx={{ textAlign: 'center' }}>
               <Shield sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              <Typography variant="h6" sx={{ fontWeight: 700 }}>
                 Owner
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', fontSize: '0.7rem' }}>
