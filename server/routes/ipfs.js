@@ -1,105 +1,113 @@
 /**
  * IPFS Upload Route
- * Handles file uploads to Pinata/IPFS
+ * Handles PUBLIC file uploads to IPFS via Pinata.
+ *
+ * Files are pinned with cidVersion 1 and made publicly accessible through
+ * the configured Pinata gateway (no gateway key required for reads).
  */
 
 const express = require('express');
 const multer = require('multer');
 const { PinataSDK } = require('pinata');
 const router = express.Router();
+const config = require('../config');
 
-// Configure multer for memory storage
+// Configure multer for memory storage (files go straight to IPFS, not disk)
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB limit
-  },
+  limits: { fileSize: config.upload.maxFileSizeBytes },
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-    if (allowedTypes.includes(file.mimetype)) {
+    if (config.upload.allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only JPEG, PNG, GIF, and WebP are allowed.'));
+      cb(new Error(`Invalid file type. Only ${config.upload.allowedMimeTypes.join(', ')} are allowed.`));
     }
   },
 });
 
-// Initialize Pinata
+// Initialize Pinata SDK (JWT auth)
 const pinata = new PinataSDK({
-  pinataJWTKey: process.env.PINATA_JWT,
-  pinataGateway: process.env.PINATA_GATEWAY
+  pinataJwt: config.pinata.jwt,
+  pinataGateway: config.pinata.gateway,
 });
 
 /**
- * POST /api/ipfs/upload
- * Upload a file to IPFS via Pinata
- * 
- * Request: multipart/form-data with 'file' field
- * Response: { ipfsHash, ipfsUrl, fileName, fileSize }
+ * Build a public gateway URL for a CID
  */
-router.post('/upload', upload.single('file'), async (req, res) => {
+function publicUrl(cid) {
+  return `https://${config.pinata.gateway}/ipfs/${cid}`;
+}
+
+/**
+ * POST /api/ipfs/upload
+ * Publicly upload an image file to IPFS via Pinata.
+ *
+ * Request: multipart/form-data with 'file' field
+ * Response: { success, ipfsHash (CIDv1), ipfsUrl (public gateway URL), fileName, fileSize, mimeType }
+ */
+router.post('/upload', upload.single('file'), async (req, res, next) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
+    if (!config.pinata.jwt) {
+      return res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
+    }
 
-    // Upload to Pinata
     const file = new File([req.file.buffer], req.file.originalname, {
       type: req.file.mimetype,
     });
 
-    const uploadResult = await pinata.upload.file(file);
-    
-    const ipfsHash = uploadResult.IpfsHash || uploadResult.cid;
-    const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    // Pin publicly on IPFS (uploads are public by default — readable via the gateway)
+    const result = await pinata.upload.file(file);
+    const cid = result.cid || result.IpfsHash;
+    const ipfsUrl = publicUrl(cid);
 
-    // Log the upload
-    console.log(`✅ File uploaded to IPFS: ${ipfsHash}`);
+    console.log(`✅ Public IPFS upload: ${cid} (${req.file.originalname})`);
 
     res.json({
       success: true,
-      ipfsHash,
+      ipfsHash: cid,
       ipfsUrl,
       fileName: req.file.originalname,
       fileSize: req.file.size,
       mimeType: req.file.mimetype,
     });
   } catch (error) {
-    console.error('IPFS upload error:', error);
-    res.status(500).json({ 
-      error: 'Failed to upload file to IPFS',
-      message: error.message 
-    });
+    next(error);
   }
 });
 
 /**
  * POST /api/ipfs/upload-json
- * Upload JSON metadata to IPFS
+ * Publicly upload JSON metadata to IPFS via Pinata.
+ *
+ * Request body: { data: <any JSON object> }
+ * Response: { success, ipfsHash, ipfsUrl }
  */
-router.post('/upload-json', async (req, res) => {
+router.post('/upload-json', async (req, res, next) => {
   try {
     const { data } = req.body;
-    
+
     if (!data) {
       return res.status(400).json({ error: 'No data provided' });
     }
+    if (!config.pinata.jwt) {
+      return res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
+    }
 
-    const uploadResult = await pinata.upload.json(data);
-    const ipfsHash = uploadResult.IpfsHash || uploadResult.cid;
-    const ipfsUrl = `https://gateway.pinata.cloud/ipfs/${ipfsHash}`;
+    const result = await pinata.upload.json(data);
+    const cid = result.cid || result.IpfsHash;
+
+    console.log(`✅ Public IPFS JSON upload: ${cid}`);
 
     res.json({
       success: true,
-      ipfsHash,
-      ipfsUrl,
+      ipfsHash: cid,
+      ipfsUrl: publicUrl(cid),
     });
   } catch (error) {
-    console.error('JSON upload error:', error);
-    res.status(500).json({ 
-      error: 'Failed to upload JSON to IPFS',
-      message: error.message 
-    });
+    next(error);
   }
 });
 
