@@ -21,6 +21,7 @@ import {
   Divider,
   Chip,
   Grid,
+  Snackbar,
 } from '@mui/material';
 import {
   Dashboard,
@@ -56,9 +57,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
   const [newFeeBps, setNewFeeBps] = useState('');
   const [newListingFee, setNewListingFee] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
-  const [loading, setLoading] = useState(false);
+  // Which action is currently in-flight ('fee' | 'listingFee' | 'withdraw' | null)
+  // so only the clicked button shows its loading state.
+  const [activeAction, setActiveAction] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [checkingOwner, setCheckingOwner] = useState(true);
+
+  const loading = activeAction !== null;
 
   useEffect(() => {
     const checkOwner = async () => {
@@ -101,7 +106,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
       return;
     }
 
-    setLoading(true);
+    setActiveAction('fee');
     try {
       setStatusMessage('Updating platform fee...');
       const txHash = await setPlatformFee(feeValue, (status: string) => setStatusMessage(status));
@@ -116,7 +121,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         : error.reason || error.message || 'Failed to update fee';
       onShowStatus(message, 'error');
     } finally {
-      setLoading(false);
+      setActiveAction(null);
       setStatusMessage('');
     }
   };
@@ -128,7 +133,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
       return;
     }
 
-    setLoading(true);
+    setActiveAction('listingFee');
     try {
       setStatusMessage('Updating listing fee...');
       const txHash = await setListingFee(newListingFee, (status: string) => setStatusMessage(status));
@@ -143,7 +148,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         : error.reason || error.message || 'Failed to update listing fee';
       onShowStatus(message, 'error');
     } finally {
-      setLoading(false);
+      setActiveAction(null);
       setStatusMessage('');
     }
   };
@@ -159,7 +164,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
       return;
     }
 
-    setLoading(true);
+    setActiveAction('withdraw');
     try {
       setStatusMessage('Withdrawing platform fees...');
       // withdrawPlatformFees takes (recipient, amount)
@@ -179,7 +184,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         : error.reason || error.message || 'Failed to withdraw fees';
       onShowStatus(message, 'error');
     } finally {
-      setLoading(false);
+      setActiveAction(null);
       setStatusMessage('');
     }
   };
@@ -233,16 +238,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         Admin Dashboard
       </Typography>
 
-      {/* Status Alert */}
-      {loading && (
-        <Alert 
-          severity="info" 
-          sx={{ mb: 3 }}
-          icon={<CircularProgress size={20} />}
-        >
+      {/* Loading Snackbar (shows only while the clicked button's transaction is in flight) */}
+      <Snackbar
+        open={loading}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert severity="info" sx={{ width: '100%' }} icon={<CircularProgress size={20} />}>
           {statusMessage || 'Processing...'}
         </Alert>
-      )}
+      </Snackbar>
 
       {!isCorrectNetwork && (
         <Alert severity="warning" sx={{ mb: 3 }}>
@@ -359,10 +363,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
               color="secondary"
               onClick={handleUpdateFee}
               disabled={loading || !newFeeBps}
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Percent />}
+              startIcon={activeAction === 'fee' ? <CircularProgress size={20} color="inherit" /> : <Percent />}
               sx={{ height: 56 }}
             >
-              Update Fee
+              {activeAction === 'fee' ? 'Updating...' : 'Update Fee'}
             </Button>
           </Box>
         </CardContent>
@@ -394,10 +398,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
               color="warning"
               onClick={handleUpdateListingFee}
               disabled={loading || !newListingFee}
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <span>🏷️</span>}
+              startIcon={activeAction === 'listingFee' ? <CircularProgress size={20} color="inherit" /> : <span>🏷️</span>}
               sx={{ height: 56 }}
             >
-              Update Listing Fee
+              {activeAction === 'listingFee' ? 'Updating...' : 'Update Listing Fee'}
             </Button>
           </Box>
         </CardContent>
@@ -429,10 +433,10 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
               variant="contained"
               onClick={handleWithdraw}
               disabled={loading || parseFloat(accruedFees) === 0}
-              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Download />}
+              startIcon={activeAction === 'withdraw' ? <CircularProgress size={20} color="inherit" /> : <Download />}
               sx={{ height: 56 }}
             >
-              {loading ? 'Withdrawing...' : `Withdraw ${withdrawAmount || accruedFees} TC`}
+              {activeAction === 'withdraw' ? 'Withdrawing...' : `Withdraw ${withdrawAmount || accruedFees} TC`}
             </Button>
           </Box>
         </CardContent>
