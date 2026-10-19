@@ -28,8 +28,18 @@ import {
   History,
   OpenInNew,
 } from '@mui/icons-material';
-import { fetchTransactions, StoredTransaction } from '../utils/apiClient';
+import { fetchTransactions, fetchProducts, StoredTransaction, StoredProduct } from '../utils/apiClient';
 import { SEPOLIA_BLOCK_EXPLORER } from '../config/contracts';
+
+/** Format a productId (number or string) as an on-chain id key, e.g. "1" */
+const normalizeProductId = (id?: number | string | null): string | null => {
+  if (id === undefined || id === null || id === '') return null;
+  try {
+    return BigInt(id).toString();
+  } catch {
+    return String(id);
+  }
+};
 
 interface TransactionHistoryProps {
   /** Optional filter: only show transactions of this type */
@@ -66,6 +76,7 @@ const formatAmount = (amount?: string) => {
 
 const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '' }) => {
   const [transactions, setTransactions] = useState<StoredTransaction[]>([]);
+  const [productNames, setProductNames] = useState<Record<string, string>>({});
   const [typeFilter, setTypeFilter] = useState(initialType);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,10 +84,23 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    const result = await fetchTransactions({
-      type: typeFilter || undefined,
-      limit: 100,
+    // Fetch transactions and product metadata in parallel so we can display
+    // product names instead of raw product IDs.
+    const [result, products] = await Promise.all([
+      fetchTransactions({
+        type: typeFilter || undefined,
+        limit: 100,
+      }),
+      fetchProducts({ limit: 1000 }),
+    ]);
+
+    const nameMap: Record<string, string> = {};
+    (products || []).forEach((p: StoredProduct) => {
+      const key = normalizeProductId(p.productId);
+      if (key && p.name) nameMap[key] = p.name;
     });
+    setProductNames(nameMap);
+
     if (result === null) {
       setError('Could not load transactions. Is the backend server (port 5000) and MongoDB running?');
       setTransactions([]);
@@ -175,7 +199,21 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
                           color={STATUS_COLORS[tx.status] || 'default'}
                         />
                       </TableCell>
-                      <TableCell>{tx.productId ?? '—'}</TableCell>
+                      <TableCell>
+                        {(() => {
+                          const key = normalizeProductId(tx.productId);
+                          const name = key ? productNames[key] : undefined;
+                          return name ? (
+                            <Tooltip title={`Product ID: ${key}`}>
+                              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                {name}
+                              </Typography>
+                            </Tooltip>
+                          ) : (
+                            key ?? '—'
+                          );
+                        })()}
+                      </TableCell>
                       <TableCell>
                         <Tooltip title={tx.from}>
                           <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
