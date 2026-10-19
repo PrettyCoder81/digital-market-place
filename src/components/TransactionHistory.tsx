@@ -3,7 +3,7 @@
  * Displays blockchain transactions stored in MongoDB (fetched via the
  * backend API GET /api/transactions), newest first.
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Card,
@@ -22,11 +22,13 @@ import {
   Tooltip,
   MenuItem,
   TextField,
+  InputAdornment,
 } from '@mui/material';
 import {
   Refresh,
   History,
   OpenInNew,
+  Search,
 } from '@mui/icons-material';
 import { fetchTransactions, fetchProducts, StoredTransaction, StoredProduct } from '../utils/apiClient';
 import { SEPOLIA_BLOCK_EXPLORER } from '../config/contracts';
@@ -78,6 +80,10 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
   const [transactions, setTransactions] = useState<StoredTransaction[]>([]);
   const [productNames, setProductNames] = useState<Record<string, string>>({});
   const [typeFilter, setTypeFilter] = useState(initialType);
+  const [statusFilter, setStatusFilter] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,6 +120,49 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
     load();
   }, [load]);
 
+  // Apply client-side filters: status, free-text search, and date range
+  const filteredTransactions = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    const fromTs = dateFrom ? new Date(dateFrom).getTime() : null;
+    // Include the whole "to" day by shifting to end of day
+    const toTs = dateTo ? new Date(`${dateTo}T23:59:59.999`).getTime() : null;
+
+    return transactions.filter((tx) => {
+      if (statusFilter && tx.status !== statusFilter) return false;
+
+      const ts = new Date(tx.timestamp).getTime();
+      if (fromTs !== null && ts < fromTs) return false;
+      if (toTs !== null && ts > toTs) return false;
+
+      if (!q) return true;
+      const productKey = normalizeProductId(tx.productId);
+      const productName = productKey ? (productNames[productKey] || '').toLowerCase() : '';
+      return (
+        (tx.txHash || '').toLowerCase().includes(q) ||
+        (tx.from || '').toLowerCase().includes(q) ||
+        (tx.to || '').toLowerCase().includes(q) ||
+        (tx.type || '').toLowerCase().includes(q) ||
+        productName.includes(q) ||
+        (productKey || '').includes(q)
+      );
+    });
+  }, [transactions, statusFilter, searchQuery, dateFrom, dateTo, productNames]);
+
+  const hasActiveFilters =
+    typeFilter !== '' ||
+    statusFilter !== '' ||
+    searchQuery.trim() !== '' ||
+    dateFrom !== '' ||
+    dateTo !== '';
+
+  const clearFilters = () => {
+    setTypeFilter('');
+    setStatusFilter('');
+    setSearchQuery('');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   return (
     <Box>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3, flexWrap: 'wrap', gap: 2 }}>
@@ -122,6 +171,11 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
           Transactions
         </Typography>
         <Box sx={{ display: 'flex', gap: 1.5, alignItems: 'center' }}>
+          {hasActiveFilters && (
+            <Button size="small" color="error" variant="text" onClick={clearFilters}>
+              Clear filters
+            </Button>
+          )}
           <TextField
             select
             size="small"
@@ -146,6 +200,79 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
         </Box>
       </Box>
 
+      {/* Filter Toolbar */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          mb: 3,
+          p: 2,
+          borderRadius: '14px',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <TextField
+          size="small"
+          placeholder="Search by hash, address, product name or ID…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ flexGrow: 1, minWidth: 240 }}
+        />
+        <TextField
+          select
+          size="small"
+          label="Status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          sx={{ minWidth: 140 }}
+        >
+          <MenuItem value="">All statuses</MenuItem>
+          <MenuItem value="confirmed">Confirmed</MenuItem>
+          <MenuItem value="pending">Pending</MenuItem>
+          <MenuItem value="failed">Failed</MenuItem>
+        </TextField>
+        <TextField
+          size="small"
+          label="From date"
+          type="date"
+          value={dateFrom}
+          onChange={(e) => setDateFrom(e.target.value)}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { max: dateTo || undefined },
+          }}
+          sx={{ minWidth: 160 }}
+        />
+        <TextField
+          size="small"
+          label="To date"
+          type="date"
+          value={dateTo}
+          onChange={(e) => setDateTo(e.target.value)}
+          slotProps={{
+            inputLabel: { shrink: true },
+            htmlInput: { min: dateFrom || undefined },
+          }}
+          sx={{ minWidth: 160 }}
+        />
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
+          Showing {filteredTransactions.length} of {transactions.length}
+        </Typography>
+      </Box>
+
       {error && (
         <Alert severity="warning" sx={{ mb: 2 }}>
           {error}
@@ -164,6 +291,15 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
                 No transactions yet. Buy, create, or transfer products to see them here.
               </Typography>
             </Box>
+          ) : filteredTransactions.length === 0 ? (
+            <Box sx={{ textAlign: 'center', py: 6 }}>
+              <Typography color="text.secondary" sx={{ mb: 2 }}>
+                No transactions match the current filters.
+              </Typography>
+              <Button variant="outlined" size="small" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            </Box>
           ) : (
             <TableContainer sx={{ maxHeight: 600 }}>
               <Table stickyHeader size="small">
@@ -181,7 +317,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {transactions.map((tx) => (
+                  {filteredTransactions.map((tx) => (
                     <TableRow key={tx._id || tx.txHash} hover>
                       <TableCell>
                         <Chip
