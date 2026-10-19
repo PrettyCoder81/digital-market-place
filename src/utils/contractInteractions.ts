@@ -333,6 +333,29 @@ export async function setPlatformFee(
 }
 
 /**
+ * Update listing fee (owner only)
+ * @param newFee - New listing fee in TC (human-readable, e.g., "10")
+ * @param onStatus - Callback for status updates
+ */
+export async function setListingFee(
+  newFee: string,
+  onStatus?: (status: string) => void
+): Promise<string> {
+  const signer = await getSigner();
+  const marketplace = getMarketplaceContract(signer);
+  
+  const newFeeWei = ethers.parseEther(newFee);
+  
+  onStatus?.('Updating listing fee...');
+  const tx = await marketplace.setListingFee(newFeeWei);
+  
+  onStatus?.('Waiting for confirmation...');
+  const receipt = await tx.wait();
+  
+  return receipt.hash;
+}
+
+/**
  * Withdraw platform fees (owner only)
  * @param recipient - Address to receive the fees
  * @param amount - Amount in TC (human-readable) to withdraw
