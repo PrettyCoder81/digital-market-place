@@ -5,7 +5,7 @@
  */
 
 // PINATA
-export const PINATA_GATEWAY="orange-hidden-skink-746.mypinata.cloud"
+export const PINATA_GATEWAY="turquoise-deep-takin-179.mypinata.cloud"
 
 // Contract Addresses
 export const TONYSCOIN_ADDRESS = '0x0C3fE514a1977ea6521d705171Ebcb916ABD28Be';
