@@ -97,34 +97,21 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onShowStatus }) =
       // POST /api/ipfs/upload
       // For demo purposes, we'll simulate the upload
       const formData = new FormData();
-      formData.append('file', imageFile);
+      formData.append('image', imageFile);
 
-      // Try to upload to backend
-      try {
-        const response = await fetch('http://localhost:5000/api/ipfs/upload', {
-          method: 'POST',
-          body: formData,
-        });
-        
-        if (response.ok) {
-          const data = await response.json();
-          setUploading(false);
-          return data.ipfsHash;
-        }
-      } catch {
-        // Backend not available, simulate for demo
+      const response = await fetch('http://localhost:5000/api/ipfs/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || errorData.error || 'IPFS upload failed');
       }
 
-      // Simulate IPFS upload for demo
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      const simulatedHash = 'Qm' + Array.from({ length: 44 }, () => 
-        'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'[
-          Math.floor(Math.random() * 62)
-        ]
-      ).join('');
-      
+      const data = await response.json();
       setUploading(false);
-      return simulatedHash;
+      return data.ipfsHash;
     } catch (error) {
       setUploading(false);
       throw new Error('Failed to upload image to IPFS');

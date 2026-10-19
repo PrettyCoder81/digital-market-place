@@ -40,6 +40,7 @@ import {
   setListing,
 } from '../utils/contractInteractions';
 import { Product } from '../utils/contractInteractions';
+import { PINATA_GATEWAY } from '../config/contracts';
 
 interface ProductCardProps {
   product: Product;
@@ -47,7 +48,7 @@ interface ProductCardProps {
   onShowStatus: (message: string, severity: 'success' | 'error' | 'info') => void;
 }
 
-const IPFS_GATEWAY = 'https://gateway.pinata.cloud/ipfs/';
+const IPFS_GATEWAY = `https://${PINATA_GATEWAY}/ipfs/`;
 
 const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowStatus }) => {
   const { account, isConnected } = useWeb3();
@@ -60,13 +61,14 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
   const isOwner = account?.toLowerCase() === product.owner.toLowerCase();
   const isListed = product.listed;
 
+  console.log(product)
   // Get image URL from IPFS hash or direct URL
   const getImageUrl = () => {
     if (!product.imageURI) {
       return generatePlaceholderImage();
     }
+    console.log(product.imageURI);
     
-    // If it's an IPFS hash (starts with Qm or ipfs://)
     if (product.imageURI.startsWith('Qm') || product.imageURI.startsWith('ipfs://')) {
       const hash = product.imageURI.replace('ipfs://', '');
       return `${IPFS_GATEWAY}${hash}`;

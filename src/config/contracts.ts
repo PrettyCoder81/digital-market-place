@@ -4,6 +4,9 @@
  * for the TonysCoin Digital Marketplace on Ethereum Sepolia
  */
 
+// PINATA
+export const PINATA_GATEWAY="orange-hidden-skink-746.mypinata.cloud"
+
 // Contract Addresses
 export const TONYSCOIN_ADDRESS = '0x0C3fE514a1977ea6521d705171Ebcb916ABD28Be';
 export const MARKETPLACE_ADDRESS = '0x58B8C864484eba2121Ec2dFE58b925dA9F250025';
