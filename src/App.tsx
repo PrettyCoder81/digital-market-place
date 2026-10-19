@@ -13,19 +13,20 @@ import {
   Typography,
 } from '@mui/material';
 import { lightTheme, darkTheme } from './theme/theme';
-import { Web3Provider } from './context/Web3Context';
+import { Web3Provider, useWeb3 } from './context/Web3Context';
 import Navbar from './components/Navbar';
 import ProductList from './components/ProductList';
 import CreateProductForm from './components/CreateProductForm';
 import AdminDashboard from './components/AdminDashboard';
 import TransactionHistory from './components/TransactionHistory';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [darkMode, setDarkMode] = useState(() => {
     const saved = localStorage.getItem('darkMode');
     return saved !== null ? JSON.parse(saved) : true;
   });
   const [currentPage, setCurrentPage] = useState('marketplace');
+  const { isOwner } = useWeb3();
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -61,7 +62,8 @@ const App: React.FC = () => {
       case 'create':
         return <CreateProductForm onShowStatus={showStatus} />;
       case 'admin':
-        return <AdminDashboard onShowStatus={showStatus} />;
+        // Only the contract owner (admin) can access the Admin page
+        return isOwner ? <AdminDashboard onShowStatus={showStatus} /> : <ProductList onShowStatus={showStatus} />;
       case 'transactions':
         return <TransactionHistory />;
       default:
@@ -70,72 +72,83 @@ const App: React.FC = () => {
   };
 
   return (
+    <Box
+      sx={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.default',
+      }}
+    >
+      <Navbar
+        currentPage={currentPage}
+        onNavigate={setCurrentPage}
+        darkMode={darkMode}
+        onToggleDarkMode={toggleDarkMode}
+      />
+
+      <Container
+        maxWidth="lg"
+        sx={{
+          flex: 1,
+          py: 4,
+          px: { xs: 2, sm: 3 },
+        }}
+      >
+        {renderPage()}
+      </Container>
+
+      {/* Footer */}
+      <Box
+        component="footer"
+        sx={{
+          py: 3,
+          px: 2,
+          mt: 'auto',
+          borderTop: 1,
+          borderColor: 'divider',
+          textAlign: 'center',
+        }}
+      >
+        <Typography variant="body2" color="text.secondary">
+          TonysCoin Digital Marketplace • Ethereum Sepolia Testnet
+        </Typography>
+        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+          Powered by Web3 • IPFS Storage • Decentralized
+        </Typography>
+      </Box>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity={snackbar.severity}
+          variant="filled"
+          sx={{ width: '100%', maxWidth: 400 }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
+};
+
+const App: React.FC = () => {
+  const theme = useMemo(
+    () => (JSON.parse(localStorage.getItem('darkMode') ?? 'true') ? darkTheme : lightTheme),
+    []
+  );
+
+  return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Web3Provider>
-        <Box
-          sx={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            bgcolor: 'background.default',
-          }}
-        >
-          <Navbar
-            currentPage={currentPage}
-            onNavigate={setCurrentPage}
-            darkMode={darkMode}
-            onToggleDarkMode={toggleDarkMode}
-          />
-
-          <Container
-            maxWidth="lg"
-            sx={{
-              flex: 1,
-              py: 4,
-              px: { xs: 2, sm: 3 },
-            }}
-          >
-            {renderPage()}
-          </Container>
-
-          {/* Footer */}
-          <Box
-            component="footer"
-            sx={{
-              py: 3,
-              px: 2,
-              mt: 'auto',
-              borderTop: 1,
-              borderColor: 'divider',
-              textAlign: 'center',
-            }}
-          >
-            <Typography variant="body2" color="text.secondary">
-              TonysCoin Digital Marketplace • Ethereum Sepolia Testnet
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-              Powered by Web3 • IPFS Storage • Decentralized
-            </Typography>
-          </Box>
-
-          {/* Snackbar for notifications */}
-          <Snackbar
-            open={snackbar.open}
-            autoHideDuration={6000}
-            onClose={handleCloseSnackbar}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-          >
-            <Alert
-              onClose={handleCloseSnackbar}
-              severity={snackbar.severity}
-              variant="filled"
-              sx={{ width: '100%', maxWidth: 400 }}
-            >
-              {snackbar.message}
-            </Alert>
-          </Snackbar>
-        </Box>
+        <AppContent />
       </Web3Provider>
     </ThemeProvider>
   );

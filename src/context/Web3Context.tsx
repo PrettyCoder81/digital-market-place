@@ -5,13 +5,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { BrowserProvider } from 'ethers';
 import { SEPOLIA_CHAIN_ID, SEPOLIA_CHAIN_ID_DECIMAL } from '../config/contracts';
-import { switchToSepolia, getTCBalance } from '../utils/contractInteractions';
+import { switchToSepolia, getTCBalance, getContractOwner } from '../utils/contractInteractions';
 
 interface Web3ContextType {
   account: string | null;
   chainId: string | null;
   isConnected: boolean;
   isCorrectNetwork: boolean;
+  isOwner: boolean;
   tcBalance: string;
   isLoading: boolean;
   connectWallet: () => Promise<void>;
@@ -24,6 +25,7 @@ const Web3Context = createContext<Web3ContextType>({
   chainId: null,
   isConnected: false,
   isCorrectNetwork: false,
+  isOwner: false,
   tcBalance: '0',
   isLoading: false,
   connectWallet: async () => {},
@@ -40,11 +42,31 @@ interface Web3ProviderProps {
 export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   const [account, setAccount] = useState<string | null>(null);
   const [chainId, setChainId] = useState<string | null>(null);
+  const [isOwner, setIsOwner] = useState(false);
   const [tcBalance, setTcBalance] = useState<string>('0');
   const [isLoading, setIsLoading] = useState(false);
 
   const isConnected = !!account;
   const isCorrectNetwork = chainId === SEPOLIA_CHAIN_ID;
+
+  // Check whether the connected account is the marketplace contract owner (admin)
+  const refreshOwnerStatus = useCallback(async (addr: string | null) => {
+    if (!addr || !window.ethereum) {
+      setIsOwner(false);
+      return;
+    }
+    try {
+      const owner = await getContractOwner();
+      setIsOwner(owner.toLowerCase() === addr.toLowerCase());
+    } catch (error) {
+      console.error('Failed to fetch contract owner:', error);
+      setIsOwner(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshOwnerStatus(account);
+  }, [account, chainId, refreshOwnerStatus]);
 
   const refreshBalance = useCallback(async () => {
     if (account) {
@@ -107,6 +129,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     setAccount(null);
     setChainId(null);
     setTcBalance('0');
+    setIsOwner(false);
   }, []);
 
   // Listen for account and chain changes
@@ -167,6 +190,7 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
         chainId,
         isConnected,
         isCorrectNetwork,
+        isOwner,
         tcBalance,
         isLoading,
         connectWallet,
