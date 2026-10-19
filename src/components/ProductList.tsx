@@ -1,8 +1,3 @@
-/**
- * ProductList Component
- * Displays a grid of products from the marketplace
- * Matches the DigitalMarketPlace contract's Product struct
- */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,

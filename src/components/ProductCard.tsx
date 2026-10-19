@@ -1,8 +1,3 @@
-/**
- * ProductCard Component
- * Displays a product with buy/transfer actions
- * Matches the DigitalMarketPlace contract's Product struct
- */
 import React, { useState } from 'react';
 import {
   Card,

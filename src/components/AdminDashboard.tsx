@@ -1,13 +1,3 @@
-/**
- * AdminDashboard Component
- * Owner-only features: view fees, update platform fee, withdraw funds
- * 
- * Contract functions used:
- * - setPlatformFee(newFeeBps): owner-only
- * - withdrawPlatformFees(recipient, amount): owner-only
- * - accruedPlatformFees: public variable
- * - platformFeeBps: public variable
- */
 import React, { useState, useEffect } from 'react';
 import {
   Box,

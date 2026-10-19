@@ -1,8 +1,3 @@
-/**
- * CreateProductForm Component
- * Form to create a new product listing with IPFS image upload
- * Handles the 2-step Web3 flow: approve listing fee, then create product
- */
 import React, { useState, useEffect } from 'react';
 import {
   Box,

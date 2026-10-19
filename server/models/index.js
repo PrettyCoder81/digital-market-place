@@ -1,19 +1,6 @@
-/**
- * Mongoose Models
- * Database schemas for the TonysCoin Digital Marketplace
- *
- * Collections:
- *  - users               : wallet addresses + roles
- *  - productmetadata     : product info synced from the blockchain/IPFS
- *  - transaction         : immutable log of all on-chain transactions
- */
-
 const mongoose = require('mongoose');
 
-/**
- * User Schema
- * Stores wallet addresses and roles
- */
+// user schema
 const userSchema = new mongoose.Schema(
   {
     walletAddress: {
@@ -48,11 +35,7 @@ userSchema.pre('save', function (next) {
   next();
 });
 
-/**
- * ProductMetadata Schema
- * Stores product information synced from the blockchain (DigitalMarketPlace.sol).
- * Price is kept as a string to preserve BigInt precision.
- */
+// product Meta schema
 const productMetadataSchema = new mongoose.Schema(
   {
     productId: {
@@ -110,10 +93,7 @@ const productMetadataSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-/**
- * Transaction Schema
- * Logs all blockchain transactions for frontend display.
- */
+// transaction schema
 const transactionSchema = new mongoose.Schema(
   {
     txHash: {
@@ -162,7 +142,7 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'timestamp', updatedAt: 'updatedAt' } }
 );
 
-// Create models
+// model creation
 const User = mongoose.model('User', userSchema);
 const ProductMetadata = mongoose.model('ProductMetadata', productMetadataSchema);
 const Transaction = mongoose.model('Transaction', transactionSchema);

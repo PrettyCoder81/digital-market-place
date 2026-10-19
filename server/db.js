@@ -1,8 +1,3 @@
-/**
- * MongoDB Connection Helper
- * Mongoose 8.x compatible connection (no useNewUrlParser/useUnifiedTopology options)
- */
-
 const mongoose = require('mongoose');
 const config = require('./config');
 

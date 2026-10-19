@@ -1,8 +1,3 @@
-/**
- * IPFS Upload Route
- * Handles file uploads to Pinata/IPFS.
- */
-
 require('dotenv').config();
 
 const express = require('express');

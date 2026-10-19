@@ -1,8 +1,3 @@
-/**
- * Backend Configuration
- * Centralized environment configuration for the TonysCoin Marketplace API
- */
-
 require('dotenv').config();
 
 module.exports = {

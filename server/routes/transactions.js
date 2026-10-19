@@ -1,17 +1,7 @@
-/**
- * Transactions Route
- * Logs blockchain transactions in MongoDB and serves them to the frontend.
- */
-
 const express = require('express');
 const router = express.Router();
 const { Transaction } = require('../models');
 
-/**
- * GET /api/transactions
- * Fetch transactions (newest first) for frontend display.
- * Query params: type, productId, from, to, status, page, limit
- */
 router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -48,10 +38,6 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-/**
- * GET /api/transactions/stats
- * Aggregate statistics per transaction type + totals.
- */
 router.get('/stats', async (req, res, next) => {
   try {
     const [byType, totalTransactions, todayCount] = await Promise.all([
@@ -88,10 +74,6 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
-/**
- * GET /api/transactions/:txHash
- * Fetch a single transaction by hash.
- */
 router.get('/:txHash', async (req, res, next) => {
   try {
     const transaction = await Transaction.findOne({ txHash: req.params.txHash });
@@ -104,11 +86,6 @@ router.get('/:txHash', async (req, res, next) => {
   }
 });
 
-/**
- * POST /api/transactions
- * Log a new blockchain transaction (idempotent by txHash).
- * Body: { txHash, type, from, to?, productId?, amount?, blockNumber?, gasUsed?, status? }
- */
 router.post('/', async (req, res, next) => {
   try {
     const { txHash, type, productId, from, to, amount, blockNumber, gasUsed, status } = req.body;
@@ -148,10 +125,6 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-/**
- * PATCH /api/transactions/:txHash
- * Update transaction status (e.g., pending -> confirmed / failed).
- */
 router.patch('/:txHash', async (req, res, next) => {
   try {
     const { status, blockNumber, gasUsed } = req.body;

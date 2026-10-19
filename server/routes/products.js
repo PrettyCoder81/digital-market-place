@@ -1,18 +1,7 @@
-/**
- * Products Route
- * Stores and serves product info (synced from the blockchain) via MongoDB.
- * The frontend reads products through these GET endpoints.
- */
-
 const express = require('express');
 const router = express.Router();
 const { ProductMetadata, User } = require('../models');
 
-/**
- * GET /api/products
- * Fetch all products (newest first).
- * Query params: page, limit, isListed, owner, search
- */
 router.get('/', async (req, res, next) => {
   try {
     const page = Math.max(parseInt(req.query.page) || 1, 1);
@@ -49,10 +38,6 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-/**
- * GET /api/products/:id
- * Fetch a single product by its blockchain productId.
- */
 router.get('/:id', async (req, res, next) => {
   try {
     const productId = parseInt(req.params.id, 10);
@@ -71,11 +56,6 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-/**
- * POST /api/products
- * Create or update product metadata in MongoDB (called after on-chain createProduct).
- * Body: { productId, name, description, ipfsHash, ipfsUrl, ownerAddress, price, txHash, imageURI? }
- */
 router.post('/', async (req, res, next) => {
   try {
     const { productId, name, description, ipfsHash, ipfsUrl, ownerAddress, price, txHash, imageURI } = req.body;
@@ -116,11 +96,6 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-/**
- * PATCH /api/products/:id
- * Update product fields (e.g., mark as sold / change owner after a buy or transfer).
- * Body (all optional): { isListed, ownerAddress, price, name, description }
- */
 router.patch('/:id', async (req, res, next) => {
   try {
     const productId = parseInt(req.params.id, 10);

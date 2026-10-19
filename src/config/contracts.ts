@@ -9,7 +9,7 @@ export const PINATA_GATEWAY="turquoise-deep-takin-179.mypinata.cloud"
 
 // Contract Addresses
 export const TONYSCOIN_ADDRESS = '0x0C3fE514a1977ea6521d705171Ebcb916ABD28Be';
-export const MARKETPLACE_ADDRESS = '0x58B8C864484eba2121Ec2dFE58b925dA9F250025';
+export const MARKETPLACE_ADDRESS = '0x59c401f90426595746DB171Fc600F0b9E09F93ba';
 
 // Network Configuration
 export const SEPOLIA_CHAIN_ID = '0xaa36a7'; // 11155111 in hex

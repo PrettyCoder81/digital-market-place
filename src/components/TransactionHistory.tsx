@@ -1,8 +1,3 @@
-/**
- * TransactionHistory Component
- * Displays blockchain transactions stored in MongoDB (fetched via the
- * backend API GET /api/transactions), newest first.
- */
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
@@ -310,7 +305,7 @@ const TransactionHistory: React.FC<TransactionHistoryProps> = ({ initialType = '
                     <TableCell>Product</TableCell>
                     <TableCell>From</TableCell>
                     <TableCell>To</TableCell>
-                    <TableCell align="right">Amount (TC)</TableCell>
+                    <TableCell align="right">Amount (TC, BPS)</TableCell>
                     <TableCell align="right">Block</TableCell>
                     <TableCell>Date</TableCell>
                     <TableCell align="center">Tx Hash</TableCell>

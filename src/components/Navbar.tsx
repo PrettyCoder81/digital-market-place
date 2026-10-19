@@ -1,7 +1,3 @@
-/**
- * Navbar Component
- * Wallet connection, navigation, and theme toggle
- */
 import React, { useState } from 'react';
 import {
   AppBar,
