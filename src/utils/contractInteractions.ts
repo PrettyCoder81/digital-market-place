@@ -18,6 +18,19 @@ import {
   ERC20_ABI,
   MARKETPLACE_ABI,
 } from '../config/contracts';
+import { logTransaction, TransactionLogPayload } from './apiClient';
+
+/**
+ * Best-effort: save a confirmed on-chain transaction to MongoDB via the
+ * backend API. Never throws — a logging failure must not break the Web3 flow.
+ */
+async function saveTransaction(payload: TransactionLogPayload): Promise<void> {
+  try {
+    await logTransaction(payload);
+  } catch (e) {
+    console.warn('Failed to save transaction to backend:', e);
+  }
+}
 
 /**
  * Get a signer from the connected wallet
@@ -199,7 +212,34 @@ export async function createProduct(
   
   onStatus?.('Waiting for transaction confirmation...');
   const receipt = await tx.wait();
-  
+
+  // Save the confirmed transaction to MongoDB via the backend API
+  let productId: number | undefined;
+  let amount = '0';
+  try {
+    const created = receipt.logs
+      .map((log: any) => {
+        try { return marketplace.interface.parseLog(log); } catch { return null; }
+      })
+      .find((e: any) => e?.name === 'ProductCreated');
+    if (created) {
+      productId = Number(created.args.productId);
+      amount = ethers.formatEther(created.args.price);
+    }
+  } catch (e) {
+    console.warn('Could not parse ProductCreated event:', e);
+  }
+  await saveTransaction({
+    txHash: receipt.hash,
+    type: 'CREATE',
+    from: await signer.getAddress(),
+    productId,
+    amount,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed?.toString(),
+    status: receipt.status === 1 ? 'confirmed' : 'failed',
+  });
+
   return receipt.hash;
 }
 
@@ -230,6 +270,36 @@ export async function buyProduct(
   onStatus?.('Waiting for purchase confirmation...');
   const receipt = await tx.wait();
   
+
+  // Parse ProductPurchased event and save the transaction to MongoDB
+  let fromAddr = '';
+  let toAddr: string | undefined;
+  let amount = price;
+  try {
+    fromAddr = await signer.getAddress();
+    const purchased = receipt.logs
+      .map((log: any) => {
+        try { return marketplace.interface.parseLog(log); } catch { return null; }
+      })
+      .find((e: any) => e?.name === 'ProductPurchased');
+    if (purchased) {
+      toAddr = purchased.args.seller;
+      amount = ethers.formatEther(purchased.args.price);
+    }
+  } catch (e) {
+    console.warn('Could not parse ProductPurchased event:', e);
+  }
+  await saveTransaction({
+    txHash: receipt.hash,
+    type: 'BUY',
+    from: fromAddr,
+    to: toAddr,
+    productId,
+    amount,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed?.toString(),
+    status: receipt.status === 1 ? 'confirmed' : 'failed',
+  });
   return receipt.hash;
 }
 
@@ -254,6 +324,19 @@ export async function transferOwnership(
   onStatus?.('Waiting for transfer confirmation...');
   const receipt = await tx.wait();
   
+
+  // Save the ownership transfer to MongoDB
+  await saveTransaction({
+    txHash: receipt.hash,
+    type: 'TRANSFER',
+    from: await signer.getAddress(),
+    to: newOwner,
+    productId,
+    amount: '0',
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed?.toString(),
+    status: receipt.status === 1 ? 'confirmed' : 'failed',
+  });
   return receipt.hash;
 }
 
@@ -277,6 +360,18 @@ export async function setListing(
   onStatus?.('Waiting for confirmation...');
   const receipt = await tx.wait();
   
+
+  // Save the listing change to MongoDB
+  await saveTransaction({
+    txHash: receipt.hash,
+    type: isListed ? 'LISTING' : 'UNLISTING',
+    from: await signer.getAddress(),
+    productId,
+    amount: '0',
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed?.toString(),
+    status: receipt.status === 1 ? 'confirmed' : 'failed',
+  });
   return receipt.hash;
 }
 
@@ -329,6 +424,17 @@ export async function setPlatformFee(
   onStatus?.('Waiting for confirmation...');
   const receipt = await tx.wait();
   
+
+  // Save the fee update to MongoDB
+  await saveTransaction({
+    txHash: receipt.hash,
+    type: 'FEE_UPDATE',
+    from: await signer.getAddress(),
+    amount: String(newFeeBps),
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed?.toString(),
+    status: receipt.status === 1 ? 'confirmed' : 'failed',
+  });
   return receipt.hash;
 }
 
@@ -377,6 +483,18 @@ export async function withdrawPlatformFees(
   onStatus?.('Waiting for withdrawal confirmation...');
   const receipt = await tx.wait();
   
+
+  // Save the withdrawal to MongoDB
+  await saveTransaction({
+    txHash: receipt.hash,
+    type: 'WITHDRAW',
+    from: await signer.getAddress(),
+    to: recipient,
+    amount,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed?.toString(),
+    status: receipt.status === 1 ? 'confirmed' : 'failed',
+  });
   return receipt.hash;
 }
 
