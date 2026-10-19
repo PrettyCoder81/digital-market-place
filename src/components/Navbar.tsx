@@ -44,7 +44,7 @@ interface NavbarProps {
 }
 
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, darkMode, onToggleDarkMode }) => {
-  const { account, isConnected, tcBalance, connectWallet, disconnectWallet, isCorrectNetwork } = useWeb3();
+  const { account, isConnected, tcBalance, connectWallet, disconnectWallet, isCorrectNetwork, isOwner } = useWeb3();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
@@ -53,10 +53,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, darkMode, onTo
     return `${addr.slice(0, 6)}...${addr.slice(-4)}`;
   };
 
+  // Admin tab is only visible to the marketplace contract owner
   const navItems = [
     { label: 'Marketplace', icon: <Store />, page: 'marketplace' },
     { label: 'Create Product', icon: <Add />, page: 'create' },
-    { label: 'Admin', icon: <Dashboard />, page: 'admin' },
+    ...(isOwner ? [{ label: 'Admin', icon: <Dashboard />, page: 'admin' }] : []),
     { label: 'Transactions', icon: <History />, page: 'transactions' },
   ];
 
