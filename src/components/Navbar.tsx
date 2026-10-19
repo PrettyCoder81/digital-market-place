@@ -32,6 +32,7 @@ import {
   Menu as MenuIcon,
   Logout,
   CurrencyExchange,
+  History,
 } from '@mui/icons-material';
 import { useWeb3 } from '../context/Web3Context';
 
@@ -56,6 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate, darkMode, onTo
     { label: 'Marketplace', icon: <Store />, page: 'marketplace' },
     { label: 'Create Product', icon: <Add />, page: 'create' },
     { label: 'Admin', icon: <Dashboard />, page: 'admin' },
+    { label: 'Transactions', icon: <History />, page: 'transactions' },
   ];
 
   return (
