@@ -6,7 +6,7 @@
 
 // Contract Addresses
 export const TONYSCOIN_ADDRESS = '0x0C3fE514a1977ea6521d705171Ebcb916ABD28Be';
-export const MARKETPLACE_ADDRESS = '0x89bE3eeB9873407e46001848ea7dDE28e45c6c50';
+export const MARKETPLACE_ADDRESS = '0xB0ae35c960D22235DE36E5404A9F8E1c49365402';
 
 // Network Configuration
 export const SEPOLIA_CHAIN_ID = '0xaa36a7'; // 11155111 in hex
