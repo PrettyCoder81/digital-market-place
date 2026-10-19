@@ -113,8 +113,15 @@ router.post('/', async (req, res, next) => {
   try {
     const { txHash, type, productId, from, to, amount, blockNumber, gasUsed, status } = req.body;
 
+    const VALID_TYPES = ['CREATE', 'MINT', 'BUY', 'SELL', 'TRANSFER', 'WITHDRAW', 'FEE_UPDATE', 'LISTING', 'UNLISTING'];
+
     if (!txHash || !type || !from) {
       return res.status(400).json({ error: 'Missing required fields: txHash, type, from' });
+    }
+    if (!VALID_TYPES.includes(String(type).toUpperCase())) {
+      return res.status(400).json({
+        error: `Invalid transaction type "${type}". Valid types: ${VALID_TYPES.join(', ')}`,
+      });
     }
 
     // Idempotency: if already logged, return existing record
