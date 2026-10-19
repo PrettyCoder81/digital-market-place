@@ -35,7 +35,9 @@ import {
   getAccruedFees,
   getPlatformFeeBps,
   getContractOwner,
+  getListingFee,
   setPlatformFee,
+  setListingFee,
   withdrawPlatformFees,
 } from '../utils/contractInteractions';
 import { MARKETPLACE_ADDRESS } from '../config/contracts';
@@ -50,7 +52,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
   const [isOwner, setIsOwner] = useState(false);
   const [accruedFees, setAccruedFees] = useState('0');
   const [currentFeeBps, setCurrentFeeBps] = useState(500);
+  const [currentListingFee, setCurrentListingFee] = useState('10');
   const [newFeeBps, setNewFeeBps] = useState('');
+  const [newListingFee, setNewListingFee] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
@@ -72,12 +76,16 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         
         const feeBps = await getPlatformFeeBps();
         setCurrentFeeBps(feeBps);
+        
+        const listingFee = await getListingFee();
+        setCurrentListingFee(parseFloat(listingFee).toFixed(2));
       } catch (error) {
         console.error('Failed to check owner status:', error);
         // For demo, assume user is owner if connected
         setIsOwner(true);
         setAccruedFees('125.50');
         setCurrentFeeBps(500);
+        setCurrentListingFee('10.00');
       } finally {
         setCheckingOwner(false);
       }
@@ -106,6 +114,33 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
       const message = error.code === 4001
         ? 'Transaction rejected by user'
         : error.reason || error.message || 'Failed to update fee';
+      onShowStatus(message, 'error');
+    } finally {
+      setLoading(false);
+      setStatusMessage('');
+    }
+  };
+
+  const handleUpdateListingFee = async () => {
+    const feeValue = parseFloat(newListingFee);
+    if (isNaN(feeValue) || feeValue <= 0) {
+      onShowStatus('Listing fee must be greater than 0', 'error');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      setStatusMessage('Updating listing fee...');
+      const txHash = await setListingFee(newListingFee, (status: string) => setStatusMessage(status));
+      
+      onShowStatus(`Listing fee updated! TX: ${txHash.slice(0, 10)}...`, 'success');
+      setCurrentListingFee(feeValue.toFixed(2));
+      setNewListingFee('');
+    } catch (error: any) {
+      console.error('Update listing fee error:', error);
+      const message = error.code === 4001
+        ? 'Transaction rejected by user'
+        : error.reason || error.message || 'Failed to update listing fee';
       onShowStatus(message, 'error');
     } finally {
       setLoading(false);
@@ -217,7 +252,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
 
       {/* Stats Grid */}
       <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <AccountBalance sx={{ fontSize: 40, color: 'primary.main', mb: 1 }} />
@@ -230,7 +265,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Percent sx={{ fontSize: 40, color: 'secondary.main', mb: 1 }} />
@@ -243,7 +278,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
             </CardContent>
           </Card>
         </Grid>
-        <Grid size={{ xs: 12, sm: 6, md: 4 }}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+          <Card>
+            <CardContent sx={{ textAlign: 'center' }}>
+              <Typography sx={{ fontSize: 40, mb: 1 }}>🏷️</Typography>
+              <Typography variant="h4" color="warning.main" sx={{ fontWeight: 700 }}>
+                {currentListingFee}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Listing Fee (TC)
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent sx={{ textAlign: 'center' }}>
               <Shield sx={{ fontSize: 40, color: 'success.main', mb: 1 }} />
@@ -315,6 +363,41 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
               sx={{ height: 56 }}
             >
               Update Fee
+            </Button>
+          </Box>
+        </CardContent>
+      </Card>
+
+      {/* Update Listing Fee */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
+            🏷️ Update Listing Fee
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Set the listing fee in TC. This is the fee charged to sellers when they create a new product listing.
+            Current listing fee: <strong>{currentListingFee} TC</strong>
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <TextField
+              label="New Listing Fee (TC)"
+              value={newListingFee}
+              onChange={(e) => setNewListingFee(e.target.value)}
+              placeholder="10"
+              disabled={loading}
+              helperText={`Current: ${currentListingFee} TC`}
+              sx={{ flex: 1, minWidth: 200 }}
+            />
+            <Button
+              variant="contained"
+              color="warning"
+              onClick={handleUpdateListingFee}
+              disabled={loading || !newListingFee}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <span>🏷️</span>}
+              sx={{ height: 56 }}
+            >
+              Update Listing Fee
             </Button>
           </Box>
         </CardContent>
