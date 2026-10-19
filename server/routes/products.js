@@ -1,6 +1,7 @@
 /**
  * Products Route
- * CRUD operations for product metadata
+ * Stores and serves product info (synced from the blockchain) via MongoDB.
+ * The frontend reads products through these GET endpoints.
  */
 
 const express = require('express');
@@ -9,116 +10,134 @@ const { ProductMetadata, User } = require('../models');
 
 /**
  * GET /api/products
- * Fetch all products
- * Query params: page, limit, isListed, owner
+ * Fetch all products (newest first).
+ * Query params: page, limit, isListed, owner, search
  */
-router.get('/', async (req, res) => {
+router.get('/', async (req, res, next) => {
   try {
-    const { page = 1, limit = 20, isListed, owner } = req.query;
-    
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+    const { isListed, owner, search } = req.query;
+
     const filter = {};
     if (isListed !== undefined) filter.isListed = isListed === 'true';
     if (owner) filter.ownerAddress = owner.toLowerCase();
+    if (search) {
+      filter.name = { $regex: search, $options: 'i' };
+    }
 
-    const products = await ProductMetadata.find(filter)
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(parseInt(limit));
-
-    const total = await ProductMetadata.countDocuments(filter);
+    const [products, total] = await Promise.all([
+      ProductMetadata.find(filter)
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit),
+      ProductMetadata.countDocuments(filter),
+    ]);
 
     res.json({
       success: true,
       products,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page,
+        limit,
         total,
         pages: Math.ceil(total / limit),
       },
     });
   } catch (error) {
-    console.error('Fetch products error:', error);
-    res.status(500).json({ error: 'Failed to fetch products' });
+    next(error);
   }
 });
 
 /**
  * GET /api/products/:id
- * Fetch a single product by productId (blockchain ID)
+ * Fetch a single product by its blockchain productId.
  */
-router.get('/:id', async (req, res) => {
+router.get('/:id', async (req, res, next) => {
   try {
-    const product = await ProductMetadata.findOne({ productId: req.params.id });
-    
+    const productId = parseInt(req.params.id, 10);
+    if (Number.isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product id' });
+    }
+
+    const product = await ProductMetadata.findOne({ productId });
     if (!product) {
       return res.status(404).json({ error: 'Product not found' });
     }
 
     res.json({ success: true, product });
   } catch (error) {
-    console.error('Fetch product error:', error);
-    res.status(500).json({ error: 'Failed to fetch product' });
+    next(error);
   }
 });
 
 /**
  * POST /api/products
- * Create or update product metadata (called after blockchain tx)
+ * Create or update product metadata in MongoDB (called after on-chain createProduct).
+ * Body: { productId, name, description, ipfsHash, ipfsUrl, ownerAddress, price, txHash, imageURI? }
  */
-router.post('/', async (req, res) => {
+router.post('/', async (req, res, next) => {
   try {
-    const { productId, name, description, ipfsHash, ipfsUrl, ownerAddress, price, txHash } = req.body;
+    const { productId, name, description, ipfsHash, ipfsUrl, ownerAddress, price, txHash, imageURI } = req.body;
 
-    // Validate required fields
-    if (!productId || !name || !ownerAddress || !price || !txHash) {
-      return res.status(400).json({ error: 'Missing required fields' });
+    if (productId === undefined || !name || !ownerAddress || !price || !txHash) {
+      return res.status(400).json({
+        error: 'Missing required fields: productId, name, ownerAddress, price, txHash',
+      });
     }
 
-    // Ensure user exists
+    // Ensure the owning user record exists
     let user = await User.findOne({ walletAddress: ownerAddress.toLowerCase() });
     if (!user) {
       user = await User.create({ walletAddress: ownerAddress.toLowerCase() });
     }
 
-    // Upsert product
+    // Upsert product metadata
     const product = await ProductMetadata.findOneAndUpdate(
-      { productId },
+      { productId: parseInt(productId, 10) },
       {
-        productId,
+        productId: parseInt(productId, 10),
         name,
-        description,
+        description: description || '',
         ipfsHash: ipfsHash || '',
         ipfsUrl: ipfsUrl || '',
+        imageURI: imageURI || '',
         ownerAddress: ownerAddress.toLowerCase(),
-        price,
+        price: String(price),
         txHash,
         isListed: true,
       },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
-    res.json({ success: true, product });
+    res.status(201).json({ success: true, product });
   } catch (error) {
-    console.error('Create product error:', error);
-    res.status(500).json({ error: 'Failed to create product' });
+    next(error);
   }
 });
 
 /**
  * PATCH /api/products/:id
- * Update product (e.g., mark as sold after purchase)
+ * Update product fields (e.g., mark as sold / change owner after a buy or transfer).
+ * Body (all optional): { isListed, ownerAddress, price, name, description }
  */
-router.patch('/:id', async (req, res) => {
+router.patch('/:id', async (req, res, next) => {
   try {
-    const { isListed, ownerAddress } = req.body;
-    
+    const productId = parseInt(req.params.id, 10);
+    if (Number.isNaN(productId)) {
+      return res.status(400).json({ error: 'Invalid product id' });
+    }
+
+    const { isListed, ownerAddress, price, name, description } = req.body;
     const updateData = {};
-    if (isListed !== undefined) updateData.isListed = isListed;
+    if (isListed !== undefined) updateData.isListed = !!isListed;
     if (ownerAddress) updateData.ownerAddress = ownerAddress.toLowerCase();
+    if (price !== undefined) updateData.price = String(price);
+    if (name) updateData.name = name;
+    if (description !== undefined) updateData.description = description;
 
     const product = await ProductMetadata.findOneAndUpdate(
-      { productId: req.params.id },
+      { productId },
       updateData,
       { new: true }
     );
@@ -129,8 +148,7 @@ router.patch('/:id', async (req, res) => {
 
     res.json({ success: true, product });
   } catch (error) {
-    console.error('Update product error:', error);
-    res.status(500).json({ error: 'Failed to update product' });
+    next(error);
   }
 });
 
