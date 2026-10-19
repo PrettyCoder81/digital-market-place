@@ -1,6 +1,7 @@
 /**
  * ProductList Component
  * Displays a grid of products from the marketplace
+ * Matches the DigitalMarketPlace contract's Product struct
  */
 import React, { useState, useEffect, useCallback } from 'react';
 import {
@@ -14,7 +15,6 @@ import {
 } from '@mui/material';
 import {
   Refresh,
-  Storefront,
   Warning,
 } from '@mui/icons-material';
 import ProductCard from './ProductCard';
@@ -31,55 +31,67 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Demo products for when not connected or no products found
+  // Demo products matching the actual Product struct (with imageURI, listed, createdAt)
   const demoProducts: Product[] = [
     {
       id: 1,
       name: 'Digital Art Collection #1',
       description: 'A unique piece of digital art from the TC Marketplace collection. Own a piece of blockchain history.',
       price: '25.00',
+      imageURI: '',
       owner: '0x1234567890abcdef1234567890abcdef12345678',
-      isListed: true,
+      listed: true,
+      createdAt: Math.floor(Date.now() / 1000) - 86400,
     },
     {
       id: 2,
       name: 'Premium NFT Pass',
       description: 'Exclusive access pass for premium marketplace features and early product listings.',
       price: '50.00',
+      imageURI: '',
       owner: '0xabcdef1234567890abcdef1234567890abcdef12',
-      isListed: true,
+      listed: true,
+      createdAt: Math.floor(Date.now() / 1000) - 172800,
     },
     {
       id: 3,
       name: 'Crypto Music Album',
       description: 'Limited edition music album stored on IPFS. Includes 10 tracks with exclusive artwork.',
       price: '15.00',
+      imageURI: '',
       owner: '0x9876543210fedcba9876543210fedcba98765432',
-      isListed: true,
+      listed: true,
+      createdAt: Math.floor(Date.now() / 1000) - 259200,
     },
     {
       id: 4,
       name: 'Virtual Land Plot',
       description: 'A 100x100 plot in the metaverse. Build, create, and monetize your virtual property.',
       price: '100.00',
+      imageURI: '',
       owner: '0xfedcba9876543210fedcba9876543210fedcba98',
-      isListed: true,
+      listed: true,
+      createdAt: Math.floor(Date.now() / 1000) - 345600,
     },
     {
       id: 5,
       name: 'Smart Contract Template',
       description: 'Production-ready Solidity smart contract templates for DeFi protocols.',
       price: '30.00',
+      imageURI: '',
       owner: '0x1111222233334444555566667777888899990000',
-      isListed: false,
+      listed: false,
+      createdAt: Math.floor(Date.now() / 1000) - 432000,
     },
     {
       id: 6,
       name: 'AI Generated Artwork',
       description: 'Stunning AI-generated digital artwork. Each piece is unique and verified on-chain.',
       price: '20.00',
+      imageURI: '',
       owner: '0xaaaabbbbccccddddeeeeffffaaaabbbbccccdddd',
-      isListed: true,
+      listed: true,
+      createdAt: Math.floor(Date.now() / 1000) - 518400,
     },
   ];
 
@@ -112,8 +124,8 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
     fetchProducts();
   }, [fetchProducts]);
 
-  const listedProducts = products.filter((p) => p.isListed);
-  const soldProducts = products.filter((p) => !p.isListed);
+  const listedProducts = products.filter((p) => p.listed);
+  const unlistedProducts = products.filter((p) => !p.listed);
 
   if (loading) {
     return (
@@ -123,7 +135,7 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={i}>
               <Skeleton
                 variant="rounded"
-                height={380}
+                height={400}
                 sx={{ borderRadius: '16px' }}
                 animation="wave"
               />
@@ -188,7 +200,7 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
             sx={{ fontWeight: 600 }}
           />
           <Chip
-            label={`${soldProducts.length} Sold`}
+            label={`${unlistedProducts.length} Unlisted`}
             variant="outlined"
             sx={{ fontWeight: 600 }}
           />
@@ -213,7 +225,7 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
       {/* Features Section */}
       <Grid container spacing={2} sx={{ mb: 4 }}>
         {[
-          { icon: '🔒', title: 'Secure', desc: 'Smart contract escrow with 5% platform fee' },
+          { icon: '🔒', title: 'Secure', desc: 'Smart contract escrow with platform fee' },
           { icon: '🌐', title: 'Decentralized', desc: 'IPFS storage, blockchain verified' },
           { icon: '💎', title: 'TonysCoin', desc: 'Exclusive TC payments, no ETH needed' },
         ].map((feature, i) => (
@@ -278,7 +290,7 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
       {/* Empty State */}
       {products.length === 0 && (
         <Box sx={{ textAlign: 'center', py: 8 }}>
-          <Storefront sx={{ fontSize: 64, color: 'text.secondary', mb: 2 }} />
+          <Typography variant="h4" color="text.secondary" sx={{ mb: 1 }}>🏪</Typography>
           <Typography variant="h5" color="text.secondary" gutterBottom>
             No products listed yet
           </Typography>

@@ -167,13 +167,14 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onShowStatus }) =
       // Step 2: Approve listing fee
       setActiveStep(1);
       setStatusMessage('Approving TonysCoin for listing fee...');
-      await approveToken(listingFee, (status) => setStatusMessage(status));
+      await approveToken(listingFee, (status: string) => setStatusMessage(status));
 
       // Step 3: Create product
       setActiveStep(2);
       setStatusMessage('Creating product on blockchain...');
-      const productDescription = `${description}\n\nIPFS: ${hash}`;
-      const txHash = await createProduct(name, productDescription, price, (status) => setStatusMessage(status));
+      // createProduct(name, description, price, imageURI, onStatus)
+      const imageURI = `ipfs://${hash}`;
+      const txHash = await createProduct(name, description, price, imageURI, (status: string) => setStatusMessage(status));
 
       onShowStatus(`Product created successfully! TX: ${txHash.slice(0, 10)}...`, 'success');
       
