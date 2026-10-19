@@ -3,7 +3,7 @@
  * Displays a grid of products from the marketplace
  * Matches the DigitalMarketPlace contract's Product struct
  */
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Box,
   Grid,
@@ -12,10 +12,15 @@ import {
   Alert,
   Button,
   Chip,
+  TextField,
+  InputAdornment,
+  MenuItem,
 } from '@mui/material';
 import {
   Refresh,
   Warning,
+  Search,
+  FilterList,
 } from '@mui/icons-material';
 import ProductCard from './ProductCard';
 import { useWeb3 } from '../context/Web3Context';
@@ -25,11 +30,27 @@ interface ProductListProps {
   onShowStatus: (message: string, severity: 'success' | 'error' | 'info') => void;
 }
 
+type StatusFilter = 'all' | 'listed' | 'unlisted';
+type SortOption = 'newest' | 'oldest' | 'price-asc' | 'price-desc' | 'name';
+
+const SORT_OPTIONS: { value: SortOption; label: string }[] = [
+  { value: 'newest', label: 'Newest first' },
+  { value: 'oldest', label: 'Oldest first' },
+  { value: 'price-asc', label: 'Price: Low to High' },
+  { value: 'price-desc', label: 'Price: High to Low' },
+  { value: 'name', label: 'Name (A–Z)' },
+];
+
 const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
   const { isConnected, isCorrectNetwork } = useWeb3();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Filtering / sorting state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
 
   const fetchProducts = useCallback(async () => {
     if (!isConnected || !isCorrectNetwork) {
@@ -58,6 +79,48 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
 
   const listedProducts = products.filter((p) => p.listed);
   const unlistedProducts = products.filter((p) => !p.listed);
+
+  // Apply search, status filter, and sorting
+  const filteredProducts = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+
+    let result = products.filter((p) => {
+      if (statusFilter === 'listed' && !p.listed) return false;
+      if (statusFilter === 'unlisted' && p.listed) return false;
+      if (!q) return true;
+      return (
+        p.name.toLowerCase().includes(q) ||
+        (p.description || '').toLowerCase().includes(q) ||
+        (p.owner || '').toLowerCase().includes(q)
+      );
+    });
+
+    result = [...result].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return b.createdAt - a.createdAt;
+        case 'oldest':
+          return a.createdAt - b.createdAt;
+        case 'price-asc':
+          return parseFloat(a.price || '0') - parseFloat(b.price || '0');
+        case 'price-desc':
+          return parseFloat(b.price || '0') - parseFloat(a.price || '0');
+        case 'name':
+          return a.name.localeCompare(b.name);
+        default:
+          return 0;
+      }
+    });
+
+    return result;
+  }, [products, searchQuery, statusFilter, sortBy]);
+
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+  };
 
   if (loading) {
     return (
@@ -206,9 +269,85 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
         </Alert>
       )}
 
+      {/* Filter Toolbar */}
+      <Box
+        sx={{
+          display: 'flex',
+          gap: 2,
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          mb: 3,
+          p: 2,
+          borderRadius: '14px',
+          border: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper',
+        }}
+      >
+        <TextField
+          size="small"
+          placeholder="Search products by name, description, or owner…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ flexGrow: 1, minWidth: 220 }}
+        />
+        <TextField
+          select
+          size="small"
+          label="Status"
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value as StatusFilter)}
+          sx={{ minWidth: 140 }}
+        >
+          <MenuItem value="all">All products</MenuItem>
+          <MenuItem value="listed">Listed only</MenuItem>
+          <MenuItem value="unlisted">Unlisted only</MenuItem>
+        </TextField>
+        <TextField
+          select
+          size="small"
+          label="Sort by"
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortOption)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <FilterList fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          sx={{ minWidth: 190 }}
+        >
+          {SORT_OPTIONS.map((opt) => (
+            <MenuItem key={opt.value} value={opt.value}>
+              {opt.label}
+            </MenuItem>
+          ))}
+        </TextField>
+        {hasActiveFilters && (
+          <Button size="small" color="error" variant="text" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        )}
+        <Typography variant="body2" color="text.secondary" sx={{ ml: 'auto' }}>
+          Showing {filteredProducts.length} of {products.length}
+        </Typography>
+      </Box>
+
       {/* Product Grid */}
       <Grid container spacing={3}>
-        {products.map((product) => (
+        {filteredProducts.map((product) => (
           <Grid size={{ xs: 12, sm: 6, md: 4 }} key={product.id}>
             <ProductCard
               product={product}
@@ -218,6 +357,22 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
           </Grid>
         ))}
       </Grid>
+
+      {/* No Results State */}
+      {products.length > 0 && filteredProducts.length === 0 && (
+        <Box sx={{ textAlign: 'center', py: 8 }}>
+          <Typography variant="h4" color="text.secondary" sx={{ mb: 1 }}>🔍</Typography>
+          <Typography variant="h5" color="text.secondary" gutterBottom>
+            No products match your filters
+          </Typography>
+          <Typography variant="body1" color="text.secondary" sx={{ mb: 2 }}>
+            Try adjusting your search or clearing the active filters.
+          </Typography>
+          <Button variant="outlined" onClick={clearFilters}>
+            Clear filters
+          </Button>
+        </Box>
+      )}
 
       {/* Empty State */}
       {products.length === 0 && (
