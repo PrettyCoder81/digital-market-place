@@ -18,7 +18,39 @@ import {
   ERC20_ABI,
   MARKETPLACE_ABI,
 } from '../config/contracts';
-import { logTransaction, TransactionLogPayload } from './apiClient';
+import {
+  logTransaction,
+  saveProduct,
+  updateProduct as apiUpdateProduct,
+  TransactionLogPayload,
+} from './apiClient';
+
+/** Extract the IPFS hash from an ipfs:// URI (or return '' for plain URLs) */
+function extractIpfsHash(uri: string): string {
+  const m = uri.match(/^ipfs:\/\/([QmA-Za-z0-9]{30,68})/);
+  return m ? m[1] : '';
+}
+
+/** Best-effort: upsert product metadata in MongoDB via the backend API. Never throws. */
+async function saveProductMeta(payload: Parameters<typeof saveProduct>[0]): Promise<void> {
+  try {
+    await saveProduct(payload);
+  } catch (e) {
+    console.warn('Failed to save product to MongoDB:', e);
+  }
+}
+
+/** Best-effort: update stored product metadata in MongoDB. Never throws. */
+async function patchProductMeta(
+  productId: number,
+  update: Parameters<typeof apiUpdateProduct>[1]
+): Promise<void> {
+  try {
+    await apiUpdateProduct(productId, update);
+  } catch (e) {
+    console.warn('Failed to update product in MongoDB:', e);
+  }
+}
 
 /**
  * Best-effort: save a confirmed on-chain transaction to MongoDB via the
@@ -240,6 +272,23 @@ export async function createProduct(
     status: receipt.status === 1 ? 'confirmed' : 'failed',
   });
 
+  // Save the product itself to MongoDB so the frontend can display it
+  if (productId !== undefined && receipt.status === 1) {
+    const ownerAddress = await signer.getAddress();
+    const ipfsHash = extractIpfsHash(imageURI);
+    await saveProductMeta({
+      productId,
+      name,
+      description,
+      ipfsHash,
+      ipfsUrl: ipfsHash ? `https://ipfs.io/ipfs/${ipfsHash}` : imageURI,
+      ownerAddress,
+      price: amount !== '0' ? amount : price,
+      txHash: receipt.hash,
+      imageURI,
+    });
+  }
+
   return receipt.hash;
 }
 
@@ -300,6 +349,14 @@ export async function buyProduct(
     gasUsed: receipt.gasUsed?.toString(),
     status: receipt.status === 1 ? 'confirmed' : 'failed',
   });
+
+  // Keep the stored product in sync: buyer becomes owner, listing closes
+  if (receipt.status === 1 && toAddr) {
+    await patchProductMeta(productId, {
+      ownerAddress: fromAddr,
+      isListed: false,
+    });
+  }
   return receipt.hash;
 }
 
@@ -337,6 +394,14 @@ export async function transferOwnership(
     gasUsed: receipt.gasUsed?.toString(),
     status: receipt.status === 1 ? 'confirmed' : 'failed',
   });
+
+  // Keep the stored product in sync with the on-chain transfer
+  if (receipt.status === 1) {
+    await patchProductMeta(productId, {
+      ownerAddress: newOwner,
+      isListed: false, // contract unlists on transfer
+    });
+  }
   return receipt.hash;
 }
 
@@ -372,6 +437,11 @@ export async function setListing(
     gasUsed: receipt.gasUsed?.toString(),
     status: receipt.status === 1 ? 'confirmed' : 'failed',
   });
+
+  // Keep the stored product's listing flag in sync
+  if (receipt.status === 1) {
+    await patchProductMeta(productId, { isListed });
+  }
   return receipt.hash;
 }
 
@@ -402,7 +472,24 @@ export async function updateProduct(
   
   onStatus?.('Waiting for confirmation...');
   const receipt = await tx.wait();
-  
+
+  // Keep the stored product metadata in sync with the on-chain update
+  if (receipt.status === 1) {
+    const ownerAddress = await signer.getAddress();
+    const ipfsHash = extractIpfsHash(imageURI);
+    await saveProductMeta({
+      productId,
+      name,
+      description,
+      ipfsHash,
+      ipfsUrl: ipfsHash ? `https://ipfs.io/ipfs/${ipfsHash}` : imageURI,
+      ownerAddress,
+      price,
+      txHash: receipt.hash,
+      imageURI,
+    });
+  }
+
   return receipt.hash;
 }
 

@@ -64,6 +64,87 @@ export interface StoredTransaction {
   timestamp: string;
 }
 
+export interface ProductPayload {
+  productId: number;
+  name: string;
+  description?: string;
+  ipfsHash?: string;
+  ipfsUrl?: string;
+  ownerAddress: string;
+  price: string; // in TC, human-readable string
+  txHash: string;
+  imageURI?: string;
+}
+
+/**
+ * Save product metadata to MongoDB via the backend (POST /api/products).
+ * Called after a product is confirmed on-chain so the frontend can list it.
+ * Best-effort: returns false if the backend is unreachable.
+ */
+export async function saveProduct(payload: ProductPayload): Promise<boolean> {
+  const result = await request<{ success: boolean }>('/products', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+  return !!result?.success;
+}
+
+/**
+ * Update a stored product in MongoDB (PATCH /api/products/:id).
+ * Used after buys/transfers to reflect new owner / listing status.
+ */
+export async function updateProduct(
+  productId: number,
+  update: Partial<Pick<ProductPayload, 'ownerAddress' | 'price' | 'name' | 'description'>> & {
+    isListed?: boolean;
+  }
+): Promise<boolean> {
+  const result = await request<{ success: boolean }>(`/products/${productId}`, {
+    method: 'PATCH',
+    body: JSON.stringify(update),
+  });
+  return !!result?.success;
+}
+
+export interface StoredProduct {
+  _id: string;
+  productId: number;
+  name: string;
+  description: string;
+  ipfsHash: string;
+  ipfsUrl: string;
+  imageURI: string;
+  ownerAddress: string;
+  price: string;
+  txHash: string;
+  isListed: boolean;
+  createdAt: string;
+}
+
+/**
+ * Fetch products stored in MongoDB (newest first).
+ */
+export async function fetchProducts(params?: {
+  isListed?: boolean;
+  owner?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}): Promise<StoredProduct[] | null> {
+  const query = new URLSearchParams();
+  if (params?.isListed !== undefined) query.set('isListed', String(params.isListed));
+  if (params?.owner) query.set('owner', params.owner);
+  if (params?.search) query.set('search', params.search);
+  if (params?.page) query.set('page', String(params.page));
+  if (params?.limit) query.set('limit', String(params.limit));
+
+  const qs = query.toString();
+  const result = await request<{ success: boolean; products: StoredProduct[] }>(
+    `/products${qs ? `?${qs}` : ''}`
+  );
+  return result?.products ?? null;
+}
+
 /**
  * Fetch stored transactions (newest first) for frontend display.
  */
