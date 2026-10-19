@@ -31,73 +31,8 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Demo products matching the actual Product struct (with imageURI, listed, createdAt)
-  const demoProducts: Product[] = [
-    {
-      id: 1,
-      name: 'Digital Art Collection #1',
-      description: 'A unique piece of digital art from the TC Marketplace collection. Own a piece of blockchain history.',
-      price: '25.00',
-      imageURI: '',
-      owner: '0x1234567890abcdef1234567890abcdef12345678',
-      listed: true,
-      createdAt: Math.floor(Date.now() / 1000) - 86400,
-    },
-    {
-      id: 2,
-      name: 'Premium NFT Pass',
-      description: 'Exclusive access pass for premium marketplace features and early product listings.',
-      price: '50.00',
-      imageURI: '',
-      owner: '0xabcdef1234567890abcdef1234567890abcdef12',
-      listed: true,
-      createdAt: Math.floor(Date.now() / 1000) - 172800,
-    },
-    {
-      id: 3,
-      name: 'Crypto Music Album',
-      description: 'Limited edition music album stored on IPFS. Includes 10 tracks with exclusive artwork.',
-      price: '15.00',
-      imageURI: '',
-      owner: '0x9876543210fedcba9876543210fedcba98765432',
-      listed: true,
-      createdAt: Math.floor(Date.now() / 1000) - 259200,
-    },
-    {
-      id: 4,
-      name: 'Virtual Land Plot',
-      description: 'A 100x100 plot in the metaverse. Build, create, and monetize your virtual property.',
-      price: '100.00',
-      imageURI: '',
-      owner: '0xfedcba9876543210fedcba9876543210fedcba98',
-      listed: true,
-      createdAt: Math.floor(Date.now() / 1000) - 345600,
-    },
-    {
-      id: 5,
-      name: 'Smart Contract Template',
-      description: 'Production-ready Solidity smart contract templates for DeFi protocols.',
-      price: '30.00',
-      imageURI: '',
-      owner: '0x1111222233334444555566667777888899990000',
-      listed: false,
-      createdAt: Math.floor(Date.now() / 1000) - 432000,
-    },
-    {
-      id: 6,
-      name: 'AI Generated Artwork',
-      description: 'Stunning AI-generated digital artwork. Each piece is unique and verified on-chain.',
-      price: '20.00',
-      imageURI: '',
-      owner: '0xaaaabbbbccccddddeeeeffffaaaabbbbccccdddd',
-      listed: true,
-      createdAt: Math.floor(Date.now() / 1000) - 518400,
-    },
-  ];
-
   const fetchProducts = useCallback(async () => {
     if (!isConnected || !isCorrectNetwork) {
-      setProducts(demoProducts);
       setLoading(false);
       return;
     }
@@ -108,12 +43,9 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
       const fetchedProducts = await getAllProducts();
       if (fetchedProducts.length > 0) {
         setProducts(fetchedProducts);
-      } else {
-        setProducts(demoProducts);
       }
     } catch (err: any) {
       console.error('Failed to fetch products:', err);
-      setProducts(demoProducts);
       setError('Using demo data - connect wallet to see live products');
     } finally {
       setLoading(false);

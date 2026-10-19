@@ -1,25 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-/**
- * @title DigitalMarketPlace
- * @dev Decentralized marketplace for digital products using TonysCoin (TC) as payment
- * @notice Deployed on Ethereum Sepolia at 0x89bE3eeB9873407e46001848ea7dDE28e45c6c50
- * 
- * KEY BEHAVIORS:
- * 1. listingFee: Defaults to 10 * 10^18 (10 TC). Users MUST call `approve` on the 
- *    TonysCoin contract for the Marketplace address before calling `createProduct`.
- * 2. buyProduct: Buyers MUST call `approve` on the TonysCoin contract for the 
- *    Marketplace address for the FULL product price. The contract then does TWO 
- *    safeTransferFrom calls:
- *    - (price - fee) → seller
- *    - fee → marketplace (platform fee)
- * 3. transferProductOwnership: Transfers ownership to a new address without any 
- *    token payment (but still requires a blockchain transaction and gas).
- *    Also sets listed=false automatically.
- * 4. withdrawPlatformFees: Only callable by the contract owner. Takes (recipient, amount).
- */
-
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -31,10 +12,10 @@ contract DigitalMarketPlace is Ownable, ReentrancyGuard {
     IERC20 public immutable paymentToken;
 
     uint256 public constant FEE_DENOMINATOR = 10_000;
-    uint256 public constant MAX_FEE_BPS = 10_000; // 100%
+    uint256 public constant MAX_FEE_BPS = 10_000; // 10%
     uint256 public platformFeeBps = 500; // 5%
     
-    uint256 public listingFee = 10 * 10**18; // Default 10 Tokens
+    uint256 public listingFee = 10 * 10**18; // Default 10 Tokens (adjust decimals based on TonysCoin)
 
     uint256 public nextProductId = 1;
     uint256 public accruedPlatformFees;
@@ -71,8 +52,9 @@ contract DigitalMarketPlace is Ownable, ReentrancyGuard {
         require(price > 0, "Price must be positive");
         require(bytes(imageURI).length > 0, "Image URI required");
 
-        // Deduct listing fee from creator
+        // Deduct listing fee
         paymentToken.safeTransferFrom(msg.sender, address(this), listingFee);
+		accruedPlatformFees += listingFee;
 
         productId = nextProductId++;
         products[productId] = Product({
@@ -141,7 +123,6 @@ contract DigitalMarketPlace is Ownable, ReentrancyGuard {
         p.listed = false;
         p.owner = msg.sender;
 
-        // Two transfers: seller gets (price - fee), platform gets fee
         paymentToken.safeTransferFrom(msg.sender, seller, sellerAmount);
         paymentToken.safeTransferFrom(msg.sender, address(this), fee);
         accruedPlatformFees += fee;
@@ -158,7 +139,7 @@ contract DigitalMarketPlace is Ownable, ReentrancyGuard {
 
         address previousOwner = p.owner;
         p.owner = newOwner;
-        p.listed = false; // Auto-delist on transfer
+        p.listed = false;
 
         emit ProductOwnershipTransferred(productId, previousOwner, newOwner);
         emit ProductListingChanged(productId, false);
