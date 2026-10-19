@@ -46,7 +46,7 @@ A decentralized digital marketplace built on Ethereum Sepolia testnet, using Ton
 | Contract | Address |
 |----------|---------|
 | TonysCoin (TC) | `0x0C3fE514a1977ea6521d705171Ebcb916ABD28Be` |
-| DigitalMarketPlace | `0xB0ae35c960D22235DE36E5404A9F8E1c49365402` |
+| DigitalMarketPlace | `0x58B8C864484eba2121Ec2dFE58b925dA9F250025` |
 
 ## 📜 Smart Contract: DigitalMarketPlace
 

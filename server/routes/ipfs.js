@@ -27,6 +27,7 @@ const upload = multer({
 // Initialize Pinata
 const pinata = new PinataSDK({
   pinataJWTKey: process.env.PINATA_JWT,
+  pinataGateway: process.env.PINATA_GATEWAY
 });
 
 /**
