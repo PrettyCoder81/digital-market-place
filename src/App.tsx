@@ -18,6 +18,7 @@ import Navbar from './components/Navbar';
 import ProductList from './components/ProductList';
 import CreateProductForm from './components/CreateProductForm';
 import AdminDashboard from './components/AdminDashboard';
+import TransactionHistory from './components/TransactionHistory';
 
 const App: React.FC = () => {
   const [darkMode, setDarkMode] = useState(() => {
@@ -61,6 +62,8 @@ const App: React.FC = () => {
         return <CreateProductForm onShowStatus={showStatus} />;
       case 'admin':
         return <AdminDashboard onShowStatus={showStatus} />;
+      case 'transactions':
+        return <TransactionHistory />;
       default:
         return <ProductList onShowStatus={showStatus} />;
     }
