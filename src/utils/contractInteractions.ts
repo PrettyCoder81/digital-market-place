@@ -1,6 +1,15 @@
 /**
  * Contract Interactions Utility
- * Contains all Web3 interaction functions for the marketplace
+ * Contains all Web3 interaction functions for the DigitalMarketPlace contract
+ * 
+ * Contract: DigitalMarketPlace on Ethereum Sepolia
+ * Payment Token: TonysCoin (TC) ERC-20
+ * 
+ * Key behaviors:
+ * - createProduct: requires listingFee approval (10 TC)
+ * - buyProduct: requires full price approval; contract splits payment to seller + platform fee
+ * - transferProductOwnership: no token cost, just gas
+ * - withdrawPlatformFees: owner-only, takes (recipient, amount)
  */
 import { ethers, BrowserProvider, Contract, Signer } from 'ethers';
 import {
@@ -73,28 +82,32 @@ export async function getContractOwner(): Promise<string> {
 }
 
 /**
- * Get accrued platform fees
+ * Get accrued platform fees (public variable)
  */
 export async function getAccruedFees(): Promise<string> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
-  const fees = await contract.getAccruedFees();
+  const fees = await contract.accruedPlatformFees();
   return ethers.formatEther(fees);
 }
 
 /**
- * Get all products from the marketplace
+ * Product type matching the Solidity struct
  */
 export interface Product {
   id: number;
   name: string;
   description: string;
   price: string;
+  imageURI: string;
   owner: string;
-  isListed: boolean;
-  imageHash?: string;
+  listed: boolean;
+  createdAt: number;
 }
 
+/**
+ * Get all products from the marketplace
+ */
 export async function getAllProducts(): Promise<Product[]> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
@@ -106,25 +119,29 @@ export async function getAllProducts(): Promise<Product[]> {
       name: p.name,
       description: p.description,
       price: ethers.formatEther(p.price),
+      imageURI: p.imageURI,
       owner: p.owner,
-      isListed: p.isListed,
+      listed: p.listed,
+      createdAt: Number(p.createdAt),
     }));
   } catch {
     // Fallback: try to get products one by one
-    const productCount = await contract.productCount();
-    const count = Number(productCount);
+    const nextId = await contract.nextProductId();
+    const count = Number(nextId);
     const products: Product[] = [];
     
-    for (let i = 1; i <= count; i++) {
+    for (let i = 1; i < count; i++) {
       try {
-        const p = await contract.products(i);
+        const p = await contract.getProduct(i);
         products.push({
-          id: i,
+          id: Number(p.id),
           name: p.name,
           description: p.description,
           price: ethers.formatEther(p.price),
+          imageURI: p.imageURI,
           owner: p.owner,
-          isListed: p.isListed,
+          listed: p.listed,
+          createdAt: Number(p.createdAt),
         });
       } catch (e) {
         console.warn(`Failed to fetch product ${i}:`, e);
@@ -162,12 +179,14 @@ export async function approveToken(
  * @param name - Product name
  * @param description - Product description
  * @param price - Price in TC (human-readable)
+ * @param imageURI - IPFS URI or URL for the product image
  * @param onStatus - Callback for status updates
  */
 export async function createProduct(
   name: string,
   description: string,
   price: string,
+  imageURI: string,
   onStatus?: (status: string) => void
 ): Promise<string> {
   const signer = await getSigner();
@@ -176,7 +195,7 @@ export async function createProduct(
   const priceWei = ethers.parseEther(price);
   
   onStatus?.('Creating product on blockchain...');
-  const tx = await marketplace.createProduct(name, description, priceWei);
+  const tx = await marketplace.createProduct(name, description, priceWei, imageURI);
   
   onStatus?.('Waiting for transaction confirmation...');
   const receipt = await tx.wait();
@@ -186,8 +205,15 @@ export async function createProduct(
 
 /**
  * Buy a product from the marketplace
+ * 
+ * NOTE: The contract does TWO safeTransferFrom calls:
+ * 1. price - fee → seller
+ * 2. fee → marketplace (platform fee)
+ * 
+ * So the buyer must approve the FULL price amount.
+ * 
  * @param productId - The product ID to purchase
- * @param price - Price in TC (human-readable) for approval
+ * @param price - Full price in TC (human-readable) for approval
  * @param onStatus - Callback for status updates
  */
 export async function buyProduct(
@@ -208,7 +234,8 @@ export async function buyProduct(
 }
 
 /**
- * Transfer product ownership to a new address
+ * Transfer product ownership to a new address (no token cost, just gas)
+ * Note: This also sets the product as unlisted.
  * @param productId - The product ID to transfer
  * @param newOwner - The new owner's wallet address
  * @param onStatus - Callback for status updates
@@ -231,11 +258,65 @@ export async function transferOwnership(
 }
 
 /**
+ * Toggle product listing status (owner only)
+ * @param productId - The product ID
+ * @param isListed - Whether the product should be listed
+ * @param onStatus - Callback for status updates
+ */
+export async function setListing(
+  productId: number,
+  isListed: boolean,
+  onStatus?: (status: string) => void
+): Promise<string> {
+  const signer = await getSigner();
+  const marketplace = getMarketplaceContract(signer);
+  
+  onStatus?.('Updating listing status...');
+  const tx = await marketplace.setListing(productId, isListed);
+  
+  onStatus?.('Waiting for confirmation...');
+  const receipt = await tx.wait();
+  
+  return receipt.hash;
+}
+
+/**
+ * Update product details (owner only)
+ * @param productId - The product ID
+ * @param name - New name
+ * @param description - New description
+ * @param price - New price in TC (human-readable)
+ * @param imageURI - New image URI
+ * @param onStatus - Callback for status updates
+ */
+export async function updateProduct(
+  productId: number,
+  name: string,
+  description: string,
+  price: string,
+  imageURI: string,
+  onStatus?: (status: string) => void
+): Promise<string> {
+  const signer = await getSigner();
+  const marketplace = getMarketplaceContract(signer);
+  
+  const priceWei = ethers.parseEther(price);
+  
+  onStatus?.('Updating product...');
+  const tx = await marketplace.updateProduct(productId, name, description, priceWei, imageURI);
+  
+  onStatus?.('Waiting for confirmation...');
+  const receipt = await tx.wait();
+  
+  return receipt.hash;
+}
+
+/**
  * Update platform fee (owner only)
  * @param newFeeBps - New fee in basis points (100 = 1%, 10000 = 100%)
  * @param onStatus - Callback for status updates
  */
-export async function updatePlatformFee(
+export async function setPlatformFee(
   newFeeBps: number,
   onStatus?: (status: string) => void
 ): Promise<string> {
@@ -243,7 +324,7 @@ export async function updatePlatformFee(
   const marketplace = getMarketplaceContract(signer);
   
   onStatus?.('Updating platform fee...');
-  const tx = await marketplace.updatePlatformFee(newFeeBps);
+  const tx = await marketplace.setPlatformFee(newFeeBps);
   
   onStatus?.('Waiting for confirmation...');
   const receipt = await tx.wait();
@@ -253,16 +334,22 @@ export async function updatePlatformFee(
 
 /**
  * Withdraw platform fees (owner only)
+ * @param recipient - Address to receive the fees
+ * @param amount - Amount in TC (human-readable) to withdraw
  * @param onStatus - Callback for status updates
  */
-export async function withdrawFees(
+export async function withdrawPlatformFees(
+  recipient: string,
+  amount: string,
   onStatus?: (status: string) => void
 ): Promise<string> {
   const signer = await getSigner();
   const marketplace = getMarketplaceContract(signer);
   
+  const amountWei = ethers.parseEther(amount);
+  
   onStatus?.('Withdrawing platform fees...');
-  const tx = await marketplace.withdrawPlatformFees();
+  const tx = await marketplace.withdrawPlatformFees(recipient, amountWei);
   
   onStatus?.('Waiting for withdrawal confirmation...');
   const receipt = await tx.wait();

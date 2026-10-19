@@ -25,30 +25,53 @@ export const ERC20_ABI = [
   'function totalSupply() external view returns (uint256)',
 ];
 
-// Marketplace Contract ABI - Key functions
+/**
+ * Marketplace Contract ABI - DigitalMarketPlace
+ * Matches the deployed Solidity contract exactly.
+ * 
+ * Key behaviors:
+ * - createProduct(name, description, price, imageURI): requires listingFee approval
+ * - buyProduct(productId): requires price approval; contract does 2 safeTransferFrom calls
+ *   (one to seller for price-fee, one to self for fee)
+ * - transferProductOwnership(productId, newOwner): sets listed=false, no token cost
+ * - withdrawPlatformFees(recipient, amount): owner-only, withdraws accrued fees
+ * - setPlatformFee(newFeeBps): owner-only
+ * - setListingFee(newFee): owner-only
+ * - setListing(productId, isListed): owner-only toggle
+ * - updateProduct(productId, name, description, price, imageURI): owner-only update
+ */
 export const MARKETPLACE_ABI = [
   // Read functions
-  'function listingFee() external view returns (uint256)',
+  'function paymentToken() external view returns (address)',
   'function platformFeeBps() external view returns (uint256)',
+  'function listingFee() external view returns (uint256)',
+  'function nextProductId() external view returns (uint256)',
+  'function accruedPlatformFees() external view returns (uint256)',
   'function owner() external view returns (address)',
-  'function productCount() external view returns (uint256)',
-  'function products(uint256 productId) external view returns (uint256 id, string name, string description, uint256 price, address owner, bool isListed)',
-  'function getAccruedFees() external view returns (uint256)',
-  'function getAllProducts() external view returns (tuple(uint256 id, string name, string description, uint256 price, address owner, bool isListed)[])',
+  'function FEE_DENOMINATOR() external view returns (uint256)',
+  'function MAX_FEE_BPS() external view returns (uint256)',
+  'function getProduct(uint256 productId) external view returns (tuple(uint256 id, string name, string description, uint256 price, string imageURI, address owner, bool listed, uint256 createdAt))',
+  'function getAllProducts() external view returns (tuple(uint256 id, string name, string description, uint256 price, string imageURI, address owner, bool listed, uint256 createdAt)[])',
   
   // Write functions
-  'function createProduct(string name, string description, uint256 price) external',
+  'function createProduct(string name, string description, uint256 price, string imageURI) external returns (uint256)',
   'function buyProduct(uint256 productId) external',
   'function transferProductOwnership(uint256 productId, address newOwner) external',
-  'function updatePlatformFee(uint256 newFeeBps) external',
-  'function withdrawPlatformFees() external',
+  'function setPlatformFee(uint256 newFeeBps) external',
+  'function setListingFee(uint256 newFee) external',
+  'function setListing(uint256 productId, bool isListed) external',
+  'function updateProduct(uint256 productId, string name, string description, uint256 price, string imageURI) external',
+  'function withdrawPlatformFees(address recipient, uint256 amount) external',
   
   // Events
-  'event ProductCreated(uint256 indexed productId, string name, uint256 price, address indexed seller)',
-  'event ProductPurchased(uint256 indexed productId, address indexed buyer, uint256 price)',
-  'event OwnershipTransferred(uint256 indexed productId, address indexed from, address indexed to)',
-  'event PlatformFeeUpdated(uint256 oldFee, uint256 newFee)',
-  'event FeesWithdrawn(address indexed owner, uint256 amount)',
+  'event ProductCreated(uint256 indexed productId, address indexed owner, uint256 price)',
+  'event ProductUpdated(uint256 indexed productId)',
+  'event ProductListingChanged(uint256 indexed productId, bool listed)',
+  'event ProductPurchased(uint256 indexed productId, address indexed buyer, address indexed seller, uint256 price, uint256 fee)',
+  'event ProductOwnershipTransferred(uint256 indexed productId, address indexed previousOwner, address indexed newOwner)',
+  'event PlatformFeeUpdated(uint256 oldFeeBps, uint256 newFeeBps)',
+  'event ListingFeeUpdated(uint256 oldFee, uint256 newFee)',
+  'event PlatformFeesWithdrawn(address indexed recipient, uint256 amount)',
 ];
 
 // Default listing fee (10 TC = 10 * 10^18)

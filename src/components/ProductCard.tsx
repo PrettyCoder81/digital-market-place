@@ -1,6 +1,7 @@
 /**
  * ProductCard Component
  * Displays a product with buy/transfer actions
+ * Matches the DigitalMarketPlace contract's Product struct
  */
 import React, { useState } from 'react';
 import {
@@ -27,6 +28,8 @@ import {
   Person,
   Token,
   CheckCircle,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
 } from '@mui/icons-material';
 import { useWeb3 } from '../context/Web3Context';
 import {
@@ -34,6 +37,7 @@ import {
   buyProduct,
   transferOwnership,
   checkAllowance,
+  setListing,
 } from '../utils/contractInteractions';
 import { Product } from '../utils/contractInteractions';
 
@@ -54,14 +58,31 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
   const [statusMessage, setStatusMessage] = useState('');
 
   const isOwner = account?.toLowerCase() === product.owner.toLowerCase();
-  const isListed = product.isListed;
+  const isListed = product.listed;
 
-  // Generate a placeholder image with product name
+  // Get image URL from IPFS hash or direct URL
   const getImageUrl = () => {
-    if (product.imageHash) {
-      return `${IPFS_GATEWAY}${product.imageHash}`;
+    if (!product.imageURI) {
+      return generatePlaceholderImage();
     }
-    // Generate a deterministic gradient based on product id
+    
+    // If it's an IPFS hash (starts with Qm or ipfs://)
+    if (product.imageURI.startsWith('Qm') || product.imageURI.startsWith('ipfs://')) {
+      const hash = product.imageURI.replace('ipfs://', '');
+      return `${IPFS_GATEWAY}${hash}`;
+    }
+    
+    // If it's already a full URL
+    if (product.imageURI.startsWith('http://') || product.imageURI.startsWith('https://')) {
+      return product.imageURI;
+    }
+    
+    // Assume it's an IPFS hash
+    return `${IPFS_GATEWAY}${product.imageURI}`;
+  };
+
+  // Generate a deterministic gradient placeholder based on product id
+  const generatePlaceholderImage = () => {
     const colors = [
       ['#10b981', '#059669'],
       ['#6366f1', '#4f46e5'],
@@ -80,7 +101,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           </linearGradient>
         </defs>
         <rect width="400" height="300" fill="url(#g)"/>
-        <text x="200" y="150" text-anchor="middle" fill="white" font-size="20" font-family="Arial" dy=".3em">${product.name}</text>
+        <text x="200" y="150" text-anchor="middle" fill="white" font-size="18" font-family="Arial" dy=".3em">${product.name.slice(0, 20)}</text>
       </svg>`
     )}`;
   };
@@ -96,14 +117,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
   const confirmBuy = async () => {
     setLoading(true);
     try {
-      // Step 1: Check allowance and approve if needed
+      // The contract does 2 safeTransferFrom calls:
+      // 1. (price - fee) → seller
+      // 2. fee → marketplace
+      // So we need to approve the FULL price amount
       const currentAllowance = await checkAllowance(account!);
       if (parseFloat(currentAllowance) < parseFloat(product.price)) {
         setStatusMessage('Approving TonysCoin for purchase...');
         await approveToken(product.price, (status) => setStatusMessage(status));
       }
 
-      // Step 2: Buy the product
+      // Buy the product
       setStatusMessage('Processing purchase...');
       const txHash = await buyProduct(product.id, product.price, (status) => setStatusMessage(status));
       
@@ -157,6 +181,39 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
     }
   };
 
+  const handleToggleListing = async () => {
+    setLoading(true);
+    try {
+      const newStatus = !isListed;
+      setStatusMessage(newStatus ? 'Listing product...' : 'Delisting product...');
+      const txHash = await setListing(
+        product.id,
+        newStatus,
+        (status) => setStatusMessage(status)
+      );
+      
+      onShowStatus(
+        `Product ${newStatus ? 'listed' : 'delisted'}! TX: ${txHash.slice(0, 10)}...`,
+        'success'
+      );
+      onSuccess();
+    } catch (error: any) {
+      console.error('Toggle listing error:', error);
+      const message = error.code === 4001 
+        ? 'Transaction rejected by user' 
+        : error.reason || error.message || 'Failed to update listing';
+      onShowStatus(message, 'error');
+    } finally {
+      setLoading(false);
+      setStatusMessage('');
+    }
+  };
+
+  const formatDate = (timestamp: number) => {
+    if (!timestamp) return '';
+    return new Date(timestamp * 1000).toLocaleDateString();
+  };
+
   return (
     <>
       <Card
@@ -187,7 +244,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
             />
           ) : (
             <Chip
-              label="Sold"
+              label="Unlisted"
               color="default"
               size="small"
               sx={{ fontWeight: 600, backdropFilter: 'blur(8px)' }}
@@ -204,7 +261,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           sx={{
             objectFit: 'cover',
             transition: 'transform 0.3s ease',
-            '&:hover': { transform: 'scale(1.05)' },
+          }}
+          onError={(e: React.SyntheticEvent<HTMLImageElement>) => {
+            e.currentTarget.src = generatePlaceholderImage();
           }}
         />
 
@@ -237,7 +296,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           </Box>
 
           {/* Owner */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
             <Person sx={{ fontSize: 16, color: 'text.secondary' }} />
             <Tooltip title={product.owner}>
               <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
@@ -245,32 +304,52 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
               </Typography>
             </Tooltip>
           </Box>
+
+          {/* Created Date */}
+          {product.createdAt > 0 && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+              Created: {formatDate(product.createdAt)}
+            </Typography>
+          )}
         </CardContent>
 
         {/* Actions */}
-        <CardActions sx={{ px: 2, pb: 2, pt: 0 }}>
-          {!isListed ? (
-            <Chip label="Not Available" color="default" sx={{ width: '100%' }} />
-          ) : isOwner ? (
-            <Button
-              variant="outlined"
-              fullWidth
-              startIcon={<SwapHoriz />}
-              onClick={() => setTransferDialogOpen(true)}
-              sx={{ borderColor: 'secondary.main', color: 'secondary.main' }}
-            >
-              Transfer
-            </Button>
-          ) : (
+        <CardActions sx={{ px: 2, pb: 2, pt: 0, flexDirection: 'column', gap: 1 }}>
+          {isOwner ? (
+            <>
+              <Button
+                variant="outlined"
+                fullWidth
+                startIcon={<SwapHoriz />}
+                onClick={() => setTransferDialogOpen(true)}
+                sx={{ borderColor: 'secondary.main', color: 'secondary.main' }}
+                disabled={loading}
+              >
+                Transfer
+              </Button>
+              <Button
+                variant="text"
+                fullWidth
+                size="small"
+                startIcon={isListed ? <PauseCircleOutlined /> : <PlayCircleOutlined />}
+                onClick={handleToggleListing}
+                disabled={loading}
+              >
+                {isListed ? 'Delist' : 'Relist'}
+              </Button>
+            </>
+          ) : isListed ? (
             <Button
               variant="contained"
               fullWidth
               startIcon={<ShoppingCart />}
               onClick={handleBuy}
-              disabled={!isConnected}
+              disabled={!isConnected || loading}
             >
               Buy Now
             </Button>
+          ) : (
+            <Chip label="Not Available" color="default" sx={{ width: '100%' }} />
           )}
         </CardActions>
       </Card>
@@ -296,10 +375,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
                 <strong>{parseFloat(product.price).toFixed(2)} TC</strong>
               </Alert>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                A 5% platform fee will be deducted from the purchase price.
+                A platform fee will be deducted from the purchase price and sent to the marketplace.
+                The remaining amount goes directly to the seller.
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                You will need to approve TonysCoin spending before the purchase can be completed.
+                You will need to approve TonysCoin spending for the full price before the purchase can be completed.
               </Typography>
             </>
           )}
@@ -337,7 +417,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
             <>
               <Alert severity="warning" sx={{ mb: 2 }}>
                 This will transfer ownership of <strong>{product.name}</strong> to another address.
-                No tokens will be exchanged.
+                No tokens will be exchanged. The product will be automatically delisted.
               </Alert>
               <TextField
                 fullWidth

@@ -1,6 +1,12 @@
 /**
  * AdminDashboard Component
  * Owner-only features: view fees, update platform fee, withdraw funds
+ * 
+ * Contract functions used:
+ * - setPlatformFee(newFeeBps): owner-only
+ * - withdrawPlatformFees(recipient, amount): owner-only
+ * - accruedPlatformFees: public variable
+ * - platformFeeBps: public variable
  */
 import React, { useState, useEffect } from 'react';
 import {
@@ -29,8 +35,8 @@ import {
   getAccruedFees,
   getPlatformFeeBps,
   getContractOwner,
-  updatePlatformFee,
-  withdrawFees,
+  setPlatformFee,
+  withdrawPlatformFees,
 } from '../utils/contractInteractions';
 import { MARKETPLACE_ADDRESS } from '../config/contracts';
 
@@ -45,6 +51,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
   const [accruedFees, setAccruedFees] = useState('0');
   const [currentFeeBps, setCurrentFeeBps] = useState(500);
   const [newFeeBps, setNewFeeBps] = useState('');
+  const [withdrawAmount, setWithdrawAmount] = useState('');
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState('');
   const [checkingOwner, setCheckingOwner] = useState(true);
@@ -89,7 +96,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
     setLoading(true);
     try {
       setStatusMessage('Updating platform fee...');
-      const txHash = await updatePlatformFee(feeValue, (status) => setStatusMessage(status));
+      const txHash = await setPlatformFee(feeValue, (status: string) => setStatusMessage(status));
       
       onShowStatus(`Platform fee updated! TX: ${txHash.slice(0, 10)}...`, 'success');
       setCurrentFeeBps(feeValue);
@@ -107,13 +114,29 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
   };
 
   const handleWithdraw = async () => {
+    const amount = withdrawAmount || accruedFees;
+    if (parseFloat(amount) <= 0) {
+      onShowStatus('Please enter a valid amount', 'error');
+      return;
+    }
+    if (parseFloat(amount) > parseFloat(accruedFees)) {
+      onShowStatus('Amount exceeds accrued fees', 'error');
+      return;
+    }
+
     setLoading(true);
     try {
       setStatusMessage('Withdrawing platform fees...');
-      const txHash = await withdrawFees((status) => setStatusMessage(status));
+      // withdrawPlatformFees takes (recipient, amount)
+      const txHash = await withdrawPlatformFees(
+        account!,
+        amount,
+        (status: string) => setStatusMessage(status)
+      );
       
       onShowStatus(`Fees withdrawn! TX: ${txHash.slice(0, 10)}...`, 'success');
-      setAccruedFees('0');
+      setAccruedFees((parseFloat(accruedFees) - parseFloat(amount)).toFixed(4));
+      setWithdrawAmount('');
     } catch (error: any) {
       console.error('Withdraw error:', error);
       const message = error.code === 4001
@@ -252,6 +275,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
               sx={{ fontFamily: 'monospace' }}
             />
           </Box>
+          <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Max Fee:
+            </Typography>
+            <Chip label="10,000 bps (100%)" size="small" variant="outlined" />
+          </Box>
         </CardContent>
       </Card>
 
@@ -263,7 +292,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
             Update Platform Fee
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Set the platform fee in basis points (100 bps = 1%, 500 bps = 5%, 10000 bps = 100%)
+            Set the platform fee in basis points (100 bps = 1%, 500 bps = 5%, 10000 bps = 100%).
+            Max allowed: 10,000 bps.
           </Typography>
           <Divider sx={{ mb: 2 }} />
           <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
@@ -273,7 +303,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
               onChange={(e) => setNewFeeBps(e.target.value)}
               placeholder="500"
               disabled={loading}
-              helperText={newFeeBps ? `${(parseInt(newFeeBps) / 100).toFixed(2)}%` : 'Current: 5%'}
+              helperText={newFeeBps ? `${(parseInt(newFeeBps) / 100).toFixed(2)}%` : `Current: ${(currentFeeBps / 100).toFixed(1)}%`}
               sx={{ flex: 1, minWidth: 200 }}
             />
             <Button
@@ -298,19 +328,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
             Withdraw Platform Fees
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Withdraw all accrued platform fees to your wallet. This will transfer{' '}
-            <strong>{accruedFees} TC</strong> to your address.
+            Withdraw accrued platform fees. The contract function takes a recipient address and amount.
+            Available: <strong>{accruedFees} TC</strong>
           </Typography>
           <Divider sx={{ mb: 2 }} />
-          <Button
-            variant="contained"
-            onClick={handleWithdraw}
-            disabled={loading || parseFloat(accruedFees) === 0}
-            startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Download />}
-            sx={{ minWidth: 200 }}
-          >
-            {loading ? 'Withdrawing...' : `Withdraw ${accruedFees} TC`}
-          </Button>
+          <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <TextField
+              label={`Amount (TC) - Max: ${accruedFees}`}
+              value={withdrawAmount}
+              onChange={(e) => setWithdrawAmount(e.target.value)}
+              placeholder={accruedFees}
+              disabled={loading}
+              sx={{ flex: 1, minWidth: 200 }}
+              helperText="Leave empty to withdraw all"
+            />
+            <Button
+              variant="contained"
+              onClick={handleWithdraw}
+              disabled={loading || parseFloat(accruedFees) === 0}
+              startIcon={loading ? <CircularProgress size={20} color="inherit" /> : <Download />}
+              sx={{ height: 56 }}
+            >
+              {loading ? 'Withdrawing...' : `Withdraw ${withdrawAmount || accruedFees} TC`}
+            </Button>
+          </Box>
         </CardContent>
       </Card>
     </Box>
