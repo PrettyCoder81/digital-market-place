@@ -20,7 +20,7 @@ router.get('/', async (req, res, next) => {
     const { isListed, owner, search } = req.query;
 
     const filter = {};
-    if (isListed !== undefined) filter.isListed = isListed === 'true';
+    if (isListed !== undefined && isListed !== '') filter.isListed = String(isListed) === 'true';
     if (owner) filter.ownerAddress = owner.toLowerCase();
     if (search) {
       filter.name = { $regex: search, $options: 'i' };

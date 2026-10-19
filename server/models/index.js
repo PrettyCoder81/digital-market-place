@@ -124,7 +124,7 @@ const transactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['CREATE', 'BUY', 'TRANSFER', 'WITHDRAW', 'FEE_UPDATE', 'LISTING'],
+      enum: ['CREATE', 'MINT', 'BUY', 'SELL', 'TRANSFER', 'WITHDRAW', 'FEE_UPDATE', 'LISTING', 'UNLISTING'],
       required: true,
       index: true,
     },
