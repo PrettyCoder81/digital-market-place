@@ -2,15 +2,79 @@
  * IPFS Upload Route
  * Handles PUBLIC file uploads to IPFS via Pinata.
  *
- * Files are pinned with cidVersion 1 and made publicly accessible through
- * the configured Pinata gateway (no gateway key required for reads).
+ * Uses plain HTTPS calls to the Pinata REST API (pin_file / pin_json) so it
+ * works on ANY Node.js version (>= 18) with ZERO extra npm dependencies.
+ *
+ * NOTE: The old `@pinata/sdk` package is deprecated/unmaintained and causes
+ * "Cannot find module '@pinata/sdk'" crashes — do NOT install it. If your
+ * local copy of this file still has `require('@pinata/sdk')`, replace it
+ * with this version.
+ *
+ * Auth: a single Pinata JWT (env var PINATA_JWT) is used as a Bearer token.
+ * Uploaded files are public by default and readable through the configured
+ * gateway (PINATA_GATEWAY).
  */
 
 const express = require('express');
 const multer = require('multer');
-const { PinataSDK } = require('pinata');
 const router = express.Router();
 const config = require('../config');
+
+// ---------- Pinata REST helpers ----------
+const PINATA_API_BASE = 'https://api.pinata.cloud';
+
+async function pinataPost(path, jwt, bodyAsJson) {
+  const res = await fetch(`${PINATA_API_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+      ...(bodyAsJson ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: bodyAsJson ? JSON.stringify(bodyAsJson) : undefined,
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = await res.text();
+    } catch (_) {
+      /* ignore */
+    }
+    const err = new Error(`Pinata API error (${res.status}): ${detail || res.statusText}`);
+    err.status = res.status === 401 || res.status === 403 ? 502 : 502;
+    throw err;
+  }
+  return res.json();
+}
+
+/** Pin raw file bytes publicly via the Pinata API (multipart form-data). */
+async function pinFile(jwt, buffer, fileName, mimeType) {
+  const form = new FormData();
+  form.append(
+    'file',
+    new Blob([buffer], { type: mimeType || 'application/octet-stream' }),
+    fileName || 'file'
+  );
+
+  const res = await fetch(`${PINATA_API_BASE}/pin_file`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${jwt}` },
+    body: form,
+  });
+
+  if (!res.ok) {
+    let detail = '';
+    try {
+      detail = await res.text();
+    } catch (_) {
+      /* ignore */
+    }
+    const err = new Error(`Pinata pinFile error (${res.status}): ${detail || res.statusText}`);
+    err.status = 502;
+    throw err;
+  }
+  return res.json(); // { IpfsHash, PinSize, Timestamp }
+}
 
 // Configure multer for memory storage (files go straight to IPFS, not disk)
 const upload = multer({
@@ -23,12 +87,6 @@ const upload = multer({
       cb(new Error(`Invalid file type. Only ${config.upload.allowedMimeTypes.join(', ')} are allowed.`));
     }
   },
-});
-
-// Initialize Pinata SDK (JWT auth)
-const pinata = new PinataSDK({
-  pinataJwt: config.pinata.jwt,
-  pinataGateway: config.pinata.gateway,
 });
 
 /**
@@ -54,13 +112,9 @@ router.post('/upload', upload.single('file'), async (req, res, next) => {
       return res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
     }
 
-    const file = new File([req.file.buffer], req.file.originalname, {
-      type: req.file.mimetype,
-    });
-
     // Pin publicly on IPFS (uploads are public by default — readable via the gateway)
-    const result = await pinata.upload.file(file);
-    const cid = result.cid || result.IpfsHash;
+    const result = await pinFile(config.pinata.jwt, req.file.buffer, req.file.originalname, req.file.mimetype);
+    const cid = result.IpfsHash || result.cid;
     const ipfsUrl = publicUrl(cid);
 
     console.log(`✅ Public IPFS upload: ${cid} (${req.file.originalname})`);
@@ -96,8 +150,8 @@ router.post('/upload-json', async (req, res, next) => {
       return res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
     }
 
-    const result = await pinata.upload.json(data);
-    const cid = result.cid || result.IpfsHash;
+    const result = await pinataPost('/pin_json', config.pinata.jwt, { pinataContent: data });
+    const cid = result.IpfsHash || result.cid;
 
     console.log(`✅ Public IPFS JSON upload: ${cid}`);
 
