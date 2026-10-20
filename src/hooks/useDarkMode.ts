@@ -1,7 +1,3 @@
-/**
- * useDarkMode
- * Owns the dark/light theme preference and persists it to localStorage.
- */
 import { useCallback, useState } from 'react';
 
 const STORAGE_KEY = 'darkMode';

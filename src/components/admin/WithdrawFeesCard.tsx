@@ -1,7 +1,3 @@
-/**
- * WithdrawFeesCard
- * Admin card for withdrawing accrued platform fees.
- */
 import React from 'react';
 import {
   Box,

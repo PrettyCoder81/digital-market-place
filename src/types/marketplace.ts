@@ -1,8 +1,3 @@
-/**
- * Shared UI / domain types for the marketplace frontend.
- */
-
-/** Severity used across notifications and alerts. */
 export type NoticeSeverity = 'success' | 'error' | 'info';
 
 /** Callback shape for showing a global notification (Snackbar). */

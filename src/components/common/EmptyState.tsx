@@ -1,7 +1,3 @@
-/**
- * EmptyState
- * Reusable centered placeholder for empty lists / access-denied screens.
- */
 import React from 'react';
 import { Box, Typography } from '@mui/material';
 

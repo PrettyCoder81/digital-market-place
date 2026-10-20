@@ -1,7 +1,3 @@
-/**
- * AdminDashboard
- * Owner-only admin page: stats, contract info, fee management, and fee withdrawal.
- */
 import React, { useState } from 'react';
 import {
   Alert,

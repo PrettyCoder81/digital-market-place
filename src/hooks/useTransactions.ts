@@ -1,7 +1,3 @@
-/**
- * useTransactions
- * Loads stored transactions (backend API) plus product-name metadata for display.
- */
 import { useCallback, useEffect, useState } from 'react';
 import {
   fetchTransactions,

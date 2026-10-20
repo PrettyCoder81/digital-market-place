@@ -1,7 +1,3 @@
-/**
- * FilterToolbar
- * Generic filter bar container + shared constants for product/transaction filters.
- */
 import React from 'react';
 import { Box } from '@mui/material';
 

@@ -1,7 +1,3 @@
-/**
- * FeeUpdateCard
- * Admin card for updating the platform fee (basis points) or the listing fee (TC).
- */
 import React from 'react';
 import {
   Box,

@@ -1,8 +1,3 @@
-/**
- * useSnackbar
- * Small state machine powering the global notification Snackbar.
- * Exposes the current snackbar state plus stable show/hide handlers.
- */
 import { useCallback, useState } from 'react';
 import type { NoticeSeverity } from '../types/marketplace';
 

@@ -28,21 +28,6 @@ export const ERC20_ABI = [
   'function totalSupply() external view returns (uint256)',
 ];
 
-/**
- * Marketplace Contract ABI - DigitalMarketPlace
- * Matches the deployed Solidity contract exactly.
- * 
- * Key behaviors:
- * - createProduct(name, description, price, imageURI): requires listingFee approval
- * - buyProduct(productId): requires price approval; contract does 2 safeTransferFrom calls
- *   (one to seller for price-fee, one to self for fee)
- * - transferProductOwnership(productId, newOwner): sets listed=false, no token cost
- * - withdrawPlatformFees(recipient, amount): owner-only, withdraws accrued fees
- * - setPlatformFee(newFeeBps): owner-only
- * - setListingFee(newFee): owner-only
- * - setListing(productId, isListed): owner-only toggle
- * - updateProduct(productId, name, description, price, imageURI): owner-only update
- */
 export const MARKETPLACE_ABI = [
   // Read functions
   'function paymentToken() external view returns (address)',

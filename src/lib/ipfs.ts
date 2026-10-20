@@ -1,6 +1,3 @@
-/**
- * IPFS helpers: resolve image URIs to gateway URLs and generate placeholders.
- */
 import { PINATA_GATEWAY } from '../config/contracts';
 
 const IPFS_GATEWAY = `https://${PINATA_GATEWAY}/ipfs/`;

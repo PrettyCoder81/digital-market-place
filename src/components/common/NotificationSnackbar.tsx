@@ -1,7 +1,3 @@
-/**
- * NotificationSnackbar
- * Global notification surface driven by the useSnackbar hook.
- */
 import React from 'react';
 import { Alert, Snackbar } from '@mui/material';
 import type { SnackbarState } from '../../hooks/useSnackbar';

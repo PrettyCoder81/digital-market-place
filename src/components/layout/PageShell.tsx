@@ -1,7 +1,3 @@
-/**
- * PageShell
- * Layout primitives shared by all pages: hero banner, feature strip, footer.
- */
 import React from 'react';
 import { Box, Chip, Grid, Typography } from '@mui/material';
 

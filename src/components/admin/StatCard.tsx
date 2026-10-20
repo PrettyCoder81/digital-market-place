@@ -1,7 +1,3 @@
-/**
- * StatCard
- * Small metric card used on the admin dashboard.
- */
 import React from 'react';
 import { Card, CardContent, Typography } from '@mui/material';
 

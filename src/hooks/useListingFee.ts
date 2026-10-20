@@ -1,7 +1,3 @@
-/**
- * useListingFee
- * Fetches the current listing fee from the marketplace contract.
- */
 import { useEffect, useState } from 'react';
 import { getListingFee } from '../utils/contractInteractions';
 import { useWeb3 } from '../context/Web3Context';

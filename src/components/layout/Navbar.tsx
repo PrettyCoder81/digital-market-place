@@ -1,9 +1,3 @@
-/**
- * Navbar
- * Top application bar: branding, page navigation, theme toggle, wallet
- * connection state, and a mobile drawer. Purely presentational except for
- * reading wallet state from Web3Context.
- */
 import React, { useState } from 'react';
 import {
   AppBar,

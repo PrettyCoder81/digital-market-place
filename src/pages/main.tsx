@@ -1,8 +1,3 @@
-/**
- * AppContent (pages/main)
- * Root screen: owns navigation + theme state, composes the layout shell
- * (Navbar / page area / Footer / Snackbar) and renders the active page.
- */
 import React, { useState } from 'react';
 import { Box, Container } from '@mui/material';
 

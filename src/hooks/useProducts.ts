@@ -1,7 +1,3 @@
-/**
- * useProducts
- * Loads marketplace products from the blockchain and exposes refresh + derived stats.
- */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getAllProducts, Product } from '../utils/contractInteractions';
 import { useWeb3 } from '../context/Web3Context';

@@ -1,8 +1,3 @@
-/**
- * Centralized error handling for wallet transactions.
- * Removes the duplicated try/catch/normalize blocks from every component.
- */
-
 /** Normalize any thrown error into a user-friendly message. */
 export function getErrorMessage(error: unknown, fallback: string): string {
   const err = error as { code?: number; reason?: string; message?: string };

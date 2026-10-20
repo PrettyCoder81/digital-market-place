@@ -1,7 +1,3 @@
-/**
- * Shared formatting helpers used across the UI.
- */
-
 /** Shorten an Ethereum address to "0xAb12...34cd". */
 export function shortenAddress(address?: string | null): string {
   if (!address) return '';

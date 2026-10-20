@@ -1,8 +1,3 @@
-/**
- * useAdminStats
- * Loads admin dashboard data (owner check, accrued fees, platform/listing fees)
- * and exposes mutation helpers that keep local state in sync after transactions.
- */
 import { useCallback, useEffect, useState } from 'react';
 import {
   getAccruedFees,

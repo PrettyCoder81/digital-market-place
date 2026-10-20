@@ -1,7 +1,3 @@
-/**
- * Web3 Context Provider
- * Manages wallet connection state, account, chain, and contract data
- */
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 import { BrowserProvider } from 'ethers';
 import { SEPOLIA_CHAIN_ID, SEPOLIA_CHAIN_ID_DECIMAL } from '../config/contracts';
