@@ -1,4 +1,10 @@
-import { useCallback, useState } from 'react';
+/**
+ * useDarkMode
+ * Owns the dark/light theme preference and persists it to localStorage.
+ * Also syncs the `data-theme` attribute on <html> so any non-MUI (Tailwind /
+ * plain CSS) styling can react to the current mode as well.
+ */
+import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'darkMode';
 
@@ -13,6 +19,12 @@ function readInitialPreference(): boolean {
 
 export function useDarkMode() {
   const [darkMode, setDarkMode] = useState<boolean>(readInitialPreference);
+
+  // Keep <html data-theme="..."> in sync with state (and apply the persisted
+  // preference on first mount).
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
 
   const toggleDarkMode = useCallback(() => {
     setDarkMode((prev) => {

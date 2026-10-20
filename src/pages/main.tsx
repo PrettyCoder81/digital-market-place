@@ -9,14 +9,14 @@ import CreateProductForm from '../components/marketplace/CreateProductForm';
 import AdminDashboard from '../components/admin/AdminDashboard';
 import TransactionHistory from '../components/transactions/TransactionHistory';
 import { useWeb3 } from '../context/Web3Context';
-import { useDarkMode } from '../hooks/useDarkMode';
+import { useThemeMode } from '../context/ThemeContext';
 import { useSnackbar } from '../hooks/useSnackbar';
 import type { PageId } from '../types/marketplace';
 
 const AppContent: React.FC = () => {
   const [currentPage, setCurrentPage] = useState<PageId>('marketplace');
   const { isOwner } = useWeb3();
-  const { darkMode, toggleDarkMode } = useDarkMode();
+  const { darkMode, toggleDarkMode } = useThemeMode();
   const { snackbar, showStatus, closeSnackbar } = useSnackbar();
 
   const renderPage = () => {
