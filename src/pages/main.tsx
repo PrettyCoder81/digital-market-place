@@ -1,42 +1,39 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Box, Container } from '@mui/material';
+import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 
 import Navbar from '../components/layout/Navbar';
 import { Footer } from '../components/layout/PageShell';
 import NotificationSnackbar from '../components/common/NotificationSnackbar';
-import ProductList from '../components/marketplace/ProductList';
-import CreateProductForm from '../components/marketplace/CreateProductForm';
-import AdminDashboard from '../components/admin/AdminDashboard';
-import TransactionHistory from '../components/transactions/TransactionHistory';
 import { useWeb3 } from '../context/Web3Context';
 import { useThemeMode } from '../context/ThemeContext';
-import { useSnackbar } from '../hooks/useSnackbar';
+import { useSnackbarContext } from '../context/SnackbarContext';
 import type { PageId } from '../types/marketplace';
 
-const AppContent: React.FC = () => {
-  const [currentPage, setCurrentPage] = useState<PageId>('marketplace');
+/** Map a pathname to the nav item that should appear active. */
+const pathToPage = (pathname: string): PageId => {
+  if (pathname.startsWith('/create')) return 'create';
+  if (pathname.startsWith('/admin')) return 'admin';
+  if (pathname.startsWith('/transactions')) return 'transactions';
+  return 'marketplace';
+};
+
+export const pageToPath = (page: PageId): string =>
+  page === 'marketplace' ? '/' : `/${page}`;
+
+/**
+ * Shared shell rendered for every route via <Outlet />:
+ * navbar, page container, footer and the global snackbar.
+ */
+const RootLayout: React.FC = () => {
+  const location = useLocation();
+  const navigate = useNavigate();
   const { isOwner } = useWeb3();
   const { darkMode, toggleDarkMode } = useThemeMode();
-  const { snackbar, showStatus, closeSnackbar } = useSnackbar();
+  const { snackbar, closeSnackbar } = useSnackbarContext();
 
-  const renderPage = () => {
-    switch (currentPage) {
-      case 'create':
-        return <CreateProductForm onShowStatus={showStatus} />;
-      case 'admin':
-        // Only the contract owner (admin) can access the Admin page
-        return isOwner ? (
-          <AdminDashboard onShowStatus={showStatus} />
-        ) : (
-          <ProductList onShowStatus={showStatus} />
-        );
-      case 'transactions':
-        return <TransactionHistory />;
-      case 'marketplace':
-      default:
-        return <ProductList onShowStatus={showStatus} />;
-    }
-  };
+  // Admin tab is only visible to the contract owner; keep the highlight sane.
+  const currentPage: PageId = isOwner ? pathToPage(location.pathname) : 'marketplace';
 
   return (
     <Box
@@ -49,7 +46,7 @@ const AppContent: React.FC = () => {
     >
       <Navbar
         currentPage={currentPage}
-        onNavigate={setCurrentPage}
+        onNavigate={(page) => navigate(pageToPath(page))}
         darkMode={darkMode}
         onToggleDarkMode={toggleDarkMode}
       />
@@ -62,7 +59,7 @@ const AppContent: React.FC = () => {
           px: { xs: 2, sm: 3 },
         }}
       >
-        {renderPage()}
+        <Outlet />
       </Container>
 
       <Footer />
@@ -72,4 +69,4 @@ const AppContent: React.FC = () => {
   );
 };
 
-export default AppContent;
+export default RootLayout;
