@@ -11,7 +11,6 @@ const PLACEHOLDER_COLORS: [string, string][] = [
   ['#06b6d4', '#0891b2'],
 ];
 
-/** Resolve a product image URI (IPFS hash, ipfs:// URI, or http URL) to a displayable URL. */
 export function resolveImageUrl(imageURI: string | undefined, seed: number, name: string): string {
   if (!imageURI) return generatePlaceholderImage(seed, name);
 
@@ -21,11 +20,9 @@ export function resolveImageUrl(imageURI: string | undefined, seed: number, name
   if (imageURI.startsWith('http://') || imageURI.startsWith('https://')) {
     return imageURI;
   }
-  // Assume it's a bare IPFS hash
   return `${IPFS_GATEWAY}${imageURI}`;
 }
 
-/** Deterministic gradient placeholder based on the product id. */
 export function generatePlaceholderImage(productId: number, name: string): string {
   const [from, to] = PLACEHOLDER_COLORS[productId % PLACEHOLDER_COLORS.length];
   return `data:image/svg+xml,${encodeURIComponent(

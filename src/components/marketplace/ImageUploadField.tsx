@@ -1,7 +1,3 @@
-/**
- * ImageUploadField
- * Click-to-upload image picker with local preview and IPFS upload status.
- */
 import React, { useRef } from 'react';
 import {
   Alert,

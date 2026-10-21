@@ -1,8 +1,3 @@
-/**
- * TransactionHistory
- * Container component: owns filter state, loads data via useTransactions,
- * applies client-side filtering, and renders the presentational TransactionTable.
- */
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
@@ -22,12 +17,10 @@ import type { StoredTransaction } from '../../utils/apiClient';
 const TX_TYPES = ['CREATE', 'BUY', 'TRANSFER', 'LISTING', 'UNLISTING', 'WITHDRAW', 'FEE_UPDATE'];
 
 interface TransactionHistoryProps {
-  /** Optional initial transaction-type filter (e.g. deep-link to "BUY" only). */
   initialType?: string;
 }
 
-/** Client-side filters applied on top of the server-fetched list. */
-interface TxFilterState {
+export interface TxFilterState {
   status: string;
   search: string;
   dateFrom: string;

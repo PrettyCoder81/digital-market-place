@@ -1,10 +1,3 @@
-/**
- * ThemeContext
- * Single source of truth for the dark/light preference. The provider owns the
- * state (via useDarkMode, which persists to localStorage) so toggling from the
- * Navbar immediately re-renders the whole tree with the correct MUI theme —
- * no stale memo or page reload required.
- */
 import React, { createContext, useContext, useMemo } from 'react';
 import {
   ThemeProvider as MuiThemeProvider,

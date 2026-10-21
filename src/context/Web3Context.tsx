@@ -45,7 +45,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
   const isConnected = !!account;
   const isCorrectNetwork = chainId === SEPOLIA_CHAIN_ID;
 
-  // Check whether the connected account is the marketplace contract owner (admin)
   const refreshOwnerStatus = useCallback(async (addr: string | null) => {
     if (!addr || !window.ethereum) {
       setIsOwner(false);
@@ -103,7 +102,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
           }
         }
         
-        // Fetch balance
         try {
           const balance = await getTCBalance(accounts[0]);
           setTcBalance(parseFloat(balance).toFixed(4));
@@ -128,7 +126,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     setIsOwner(false);
   }, []);
 
-  // Listen for account and chain changes
   useEffect(() => {
     if (window.ethereum) {
       const handleAccountsChanged = (accounts: string[]) => {
@@ -153,7 +150,6 @@ export const Web3Provider: React.FC<Web3ProviderProps> = ({ children }) => {
     }
   }, [disconnectWallet]);
 
-  // Auto-connect if already authorized
   useEffect(() => {
     const checkConnection = async () => {
       if (window.ethereum) {

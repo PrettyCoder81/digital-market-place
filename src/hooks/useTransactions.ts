@@ -6,7 +6,6 @@ import {
   StoredProduct,
 } from '../utils/apiClient';
 
-/** Format a productId (number or string) as an on-chain id key, e.g. "1" */
 export const normalizeProductId = (id?: number | string | null): string | null => {
   if (id === undefined || id === null || id === '') return null;
   try {

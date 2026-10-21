@@ -1,7 +1,3 @@
-/**
- * CreateProductForm
- * Multi-step product creation: IPFS image upload → fee approval → on-chain create.
- */
 import React, { useState } from 'react';
 import {
   Alert,
@@ -36,7 +32,6 @@ async function uploadImageToIpfs(file: File): Promise<string> {
   const formData = new FormData();
   formData.append('image', file);
 
-  // Backend endpoint for Pinata IPFS uploads (only used by the React frontend)
   const response = await fetch('http://localhost:5000/api/ipfs/upload', {
     method: 'POST',
     body: formData,
@@ -94,7 +89,6 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onShowStatus }) =
 
     await runTransaction({
       action: async () => {
-        // Step 1: Upload image to IPFS
         setActiveStep(0);
         setStatusMessage('Uploading image to IPFS...');
         let hash = imageHash;
@@ -105,12 +99,10 @@ const CreateProductForm: React.FC<CreateProductFormProps> = ({ onShowStatus }) =
           setImageHash(hash);
         }
 
-        // Step 2: Approve listing fee
         setActiveStep(1);
         setStatusMessage('Approving TonysCoin for listing fee...');
         await approveToken(listingFee, setStatusMessage);
 
-        // Step 3: Create product on chain
         setActiveStep(2);
         setStatusMessage('Creating product on blockchain...');
         const txHash = await createProduct(name, description, price, `ipfs://${hash}`, setStatusMessage);

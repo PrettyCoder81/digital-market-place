@@ -1,7 +1,3 @@
-/**
- * TransferOwnershipDialog
- * Dialog for transferring product ownership to another address.
- */
 import React from 'react';
 import {
   Alert,

@@ -1,15 +1,11 @@
-/**
- * ProductList
- * Marketplace browse screen: hero, feature strip, network alerts,
- * search/filter/sort toolbar, and the product grid.
- */
 import React, { useMemo, useState } from 'react';
 import { Alert, Box, Button, MenuItem, TextField, Typography, InputAdornment } from '@mui/material';
 import { FilterList, Refresh, Search, Warning } from '@mui/icons-material';
 import { useWeb3 } from '../../context/Web3Context';
 import { useProducts } from '../../hooks/useProducts';
 import ProductGrid from './ProductGrid';
-import FilterToolbar, { SORT_OPTIONS, StatusFilter, SortOption } from '../common/FilterToolbar';
+import FilterToolbar, { StatusFilter } from '../common/FilterToolbar';
+import {SORT_OPTIONS, SortOption} from '../../config/constants'
 import { MarketplaceHero, FeatureStrip } from '../layout/PageShell';
 import type { ShowStatusFn } from '../../types/marketplace';
 
@@ -21,12 +17,10 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
   const { isConnected, isCorrectNetwork } = useWeb3();
   const { products, loading, error, refetch, listedCount, unlistedCount } = useProducts();
 
-  // Filtering / sorting state
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
 
-  // Apply search, status filter, and sorting
   const filteredProducts = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
 
@@ -88,28 +82,24 @@ const ProductList: React.FC<ProductListProps> = ({ onShowStatus }) => {
 
       <FeatureStrip />
 
-      {/* Network Warning */}
       {isConnected && !isCorrectNetwork && (
         <Alert severity="warning" sx={{ mb: 3 }} icon={<Warning />}>
           Please switch to the Sepolia Testnet to interact with the marketplace.
         </Alert>
       )}
 
-      {/* Error/Info Alert */}
       {error && (
         <Alert severity="info" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      {/* Not Connected Message */}
       {!isConnected && (
         <Alert severity="info" sx={{ mb: 3 }}>
           Connect your wallet to purchase products or list your own. Showing demo products below.
         </Alert>
       )}
 
-      {/* Filter Toolbar */}
       <FilterToolbar>
         <TextField
           size="small"

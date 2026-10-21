@@ -1,7 +1,3 @@
-/**
- * ProductCard
- * Displays a single marketplace product and its owner/buyer actions.
- */
 import React, { useState } from 'react';
 import {
   Box,
@@ -60,8 +56,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
   const confirmBuy = async () => {
     await runTransaction({
       action: async () => {
-        // The contract does 2 safeTransferFrom calls (price - fee → seller, fee → marketplace),
-        // so we need to approve the FULL price amount first.
         const currentAllowance = await checkAllowance(account!);
         if (parseFloat(currentAllowance) < parseFloat(product.price)) {
           setStatusMessage('Approving TonysCoin for purchase...');
@@ -155,7 +149,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           overflow: 'hidden',
         }}
       >
-        {/* Status Badge */}
         <Box sx={{ position: 'absolute', top: 12, right: 12, zIndex: 1 }}>
           <Chip
             label={isListed ? 'Listed' : 'Unlisted'}
@@ -165,7 +158,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           />
         </Box>
 
-        {/* Product Image */}
         <CardMedia
           component="img"
           height="200"
@@ -177,7 +169,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           }}
         />
 
-        {/* Product Info */}
         <CardContent sx={{ flexGrow: 1, pb: 1 }}>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 700, lineHeight: 1.3 }}>
             {product.name}
@@ -197,7 +188,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
             {product.description}
           </Typography>
 
-          {/* Price */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1.5 }}>
             <Token sx={{ color: 'primary.main', fontSize: 20 }} />
             <Typography variant="h6" color="primary" sx={{ fontWeight: 700 }}>
@@ -205,7 +195,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
             </Typography>
           </Box>
 
-          {/* Owner */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mb: 0.5 }}>
             <Person sx={{ fontSize: 16, color: 'text.secondary' }} />
             <Tooltip title={product.owner}>
@@ -215,7 +204,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
             </Tooltip>
           </Box>
 
-          {/* Created Date */}
           {product.createdAt > 0 && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
               Created: {formatDate(product.createdAt)}
@@ -223,7 +211,6 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onSuccess, onShowSta
           )}
         </CardContent>
 
-        {/* Actions */}
         <CardActions sx={{ px: 2, pb: 2, pt: 0, flexDirection: 'column', gap: 1 }}>
           {isOwner ? (
             <>

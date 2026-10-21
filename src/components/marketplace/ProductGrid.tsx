@@ -1,7 +1,3 @@
-/**
- * ProductGrid
- * Responsive product grid + skeleton/empty/no-results states.
- */
 import React from 'react';
 import { Box, Button, Grid, Skeleton, Typography } from '@mui/material';
 import ProductCard from './ProductCard';

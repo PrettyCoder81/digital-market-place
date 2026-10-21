@@ -1,8 +1,3 @@
-/**
- * Smart Contract Configuration
- * Contains contract addresses, ABIs, and network configuration
- * for the TonysCoin Digital Marketplace on Ethereum Sepolia
- */
 
 // PINATA
 export const PINATA_GATEWAY="turquoise-deep-takin-179.mypinata.cloud"
@@ -18,7 +13,6 @@ export const SEPOLIA_NETWORK_NAME = 'Sepolia Testnet';
 export const SEPOLIA_RPC_URL = 'https://rpc.sepolia.org';
 export const SEPOLIA_BLOCK_EXPLORER = 'https://sepolia.etherscan.io';
 
-// ERC-20 ABI (TonysCoin) - Minimal ABI for approve, allowance, balanceOf, symbol, decimals
 export const ERC20_ABI = [
   'function approve(address spender, uint256 amount) external returns (bool)',
   'function allowance(address owner, address spender) external view returns (uint256)',
@@ -62,8 +56,6 @@ export const MARKETPLACE_ABI = [
   'event PlatformFeesWithdrawn(address indexed recipient, uint256 amount)',
 ];
 
-// Default listing fee (10 TC = 10 * 10^18)
 export const DEFAULT_LISTING_FEE = '10000000000000000000';
 
-// Default platform fee (5% = 500 bps)
 export const DEFAULT_PLATFORM_FEE_BPS = 500;

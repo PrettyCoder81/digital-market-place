@@ -1,12 +1,3 @@
-/**
- * API Client Utility
- * Talks to the Express + MongoDB backend (http://localhost:5000) so that
- * blockchain transactions get persisted server-side and can be listed in the UI.
- *
- * All functions are best-effort: if the backend is unreachable they log a
- * warning and return null instead of throwing, so the Web3 flow never breaks.
- */
-
 const API_BASE = (import.meta as any).env?.VITE_API_URL || 'http://localhost:5000/api';
 
 export interface TransactionLogPayload {
@@ -38,10 +29,6 @@ async function request<T>(path: string, options?: RequestInit): Promise<T | null
   }
 }
 
-/**
- * Log a confirmed blockchain transaction to MongoDB via the backend.
- * Returns true when the backend acknowledged the record.
- */
 export async function logTransaction(payload: TransactionLogPayload): Promise<boolean> {
   const result = await request<{ success: boolean }>('/transactions', {
     method: 'POST',
@@ -76,11 +63,7 @@ export interface ProductPayload {
   imageURI?: string;
 }
 
-/**
- * Save product metadata to MongoDB via the backend (POST /api/products).
- * Called after a product is confirmed on-chain so the frontend can list it.
- * Best-effort: returns false if the backend is unreachable.
- */
+
 export async function saveProduct(payload: ProductPayload): Promise<boolean> {
   const result = await request<{ success: boolean }>('/products', {
     method: 'POST',
@@ -89,10 +72,7 @@ export async function saveProduct(payload: ProductPayload): Promise<boolean> {
   return !!result?.success;
 }
 
-/**
- * Update a stored product in MongoDB (PATCH /api/products/:id).
- * Used after buys/transfers to reflect new owner / listing status.
- */
+
 export async function updateProduct(
   productId: number,
   update: Partial<Pick<ProductPayload, 'ownerAddress' | 'price' | 'name' | 'description'>> & {
@@ -121,9 +101,7 @@ export interface StoredProduct {
   createdAt: string;
 }
 
-/**
- * Fetch products stored in MongoDB (newest first).
- */
+
 export async function fetchProducts(params?: {
   isListed?: boolean;
   owner?: string;
@@ -145,9 +123,6 @@ export async function fetchProducts(params?: {
   return result?.products ?? null;
 }
 
-/**
- * Fetch stored transactions (newest first) for frontend display.
- */
 export async function fetchTransactions(params?: {
   type?: string;
   from?: string;

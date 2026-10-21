@@ -1,16 +1,4 @@
-/**
- * Contract Interactions Utility
- * Contains all Web3 interaction functions for the DigitalMarketPlace contract
- * 
- * Contract: DigitalMarketPlace on Ethereum Sepolia
- * Payment Token: TonysCoin (TC) ERC-20
- * 
- * Key behaviors:
- * - createProduct: requires listingFee approval (10 TC)
- * - buyProduct: requires full price approval; contract splits payment to seller + platform fee
- * - transferProductOwnership: no token cost, just gas
- * - withdrawPlatformFees: owner-only, takes (recipient, amount)
- */
+
 import { ethers, BrowserProvider, Contract, Signer } from 'ethers';
 import {
   TONYSCOIN_ADDRESS,
@@ -25,13 +13,11 @@ import {
   TransactionLogPayload,
 } from './apiClient';
 
-/** Extract the IPFS hash from an ipfs:// URI (or return '' for plain URLs) */
 function extractIpfsHash(uri: string): string {
   const m = uri.match(/^ipfs:\/\/([QmA-Za-z0-9]{30,68})/);
   return m ? m[1] : '';
 }
 
-/** Best-effort: upsert product metadata in MongoDB via the backend API. Never throws. */
 async function saveProductMeta(payload: Parameters<typeof saveProduct>[0]): Promise<void> {
   try {
     await saveProduct(payload);
@@ -40,7 +26,6 @@ async function saveProductMeta(payload: Parameters<typeof saveProduct>[0]): Prom
   }
 }
 
-/** Best-effort: update stored product metadata in MongoDB. Never throws. */
 async function patchProductMeta(
   productId: number,
   update: Parameters<typeof apiUpdateProduct>[1]
@@ -52,10 +37,7 @@ async function patchProductMeta(
   }
 }
 
-/**
- * Best-effort: save a confirmed on-chain transaction to MongoDB via the
- * backend API. Never throws — a logging failure must not break the Web3 flow.
- */
+
 async function saveTransaction(payload: TransactionLogPayload): Promise<void> {
   try {
     await logTransaction(payload);
@@ -64,9 +46,6 @@ async function saveTransaction(payload: TransactionLogPayload): Promise<void> {
   }
 }
 
-/**
- * Get a signer from the connected wallet
- */
 export async function getSigner(): Promise<Signer> {
   if (!window.ethereum) {
     throw new Error('No wallet detected. Please install MetaMask.');
@@ -76,9 +55,6 @@ export async function getSigner(): Promise<Signer> {
   return signer;
 }
 
-/**
- * Get contract instances
- */
 export function getTonysCoinContract(signer: Signer): Contract {
   return new Contract(TONYSCOIN_ADDRESS, ERC20_ABI, signer);
 }
@@ -87,9 +63,6 @@ export function getMarketplaceContract(signer: Signer): Contract {
   return new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, signer);
 }
 
-/**
- * Get TC balance for an address
- */
 export async function getTCBalance(address: string): Promise<string> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(TONYSCOIN_ADDRESS, ERC20_ABI, provider);
@@ -97,9 +70,6 @@ export async function getTCBalance(address: string): Promise<string> {
   return ethers.formatEther(balance);
 }
 
-/**
- * Get the listing fee from the contract
- */
 export async function getListingFee(): Promise<string> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
@@ -107,9 +77,6 @@ export async function getListingFee(): Promise<string> {
   return ethers.formatEther(fee);
 }
 
-/**
- * Get the platform fee in basis points
- */
 export async function getPlatformFeeBps(): Promise<number> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
@@ -117,18 +84,12 @@ export async function getPlatformFeeBps(): Promise<number> {
   return Number(fee);
 }
 
-/**
- * Get the contract owner address
- */
 export async function getContractOwner(): Promise<string> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
   return await contract.owner();
 }
 
-/**
- * Get accrued platform fees (public variable)
- */
 export async function getAccruedFees(): Promise<string> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
@@ -136,9 +97,6 @@ export async function getAccruedFees(): Promise<string> {
   return ethers.formatEther(fees);
 }
 
-/**
- * Product type matching the Solidity struct
- */
 export interface Product {
   id: number;
   name: string;
@@ -150,9 +108,6 @@ export interface Product {
   createdAt: number;
 }
 
-/**
- * Get all products from the marketplace
- */
 export async function getAllProducts(): Promise<Product[]> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(MARKETPLACE_ADDRESS, MARKETPLACE_ABI, provider);
@@ -195,12 +150,6 @@ export async function getAllProducts(): Promise<Product[]> {
     return products;
   }
 }
-
-/**
- * Approve TonysCoin spending for the marketplace
- * @param amount - Amount in TC (human-readable, e.g., "10")
- * @param onStatus - Callback for status updates
- */
 export async function approveToken(
   amount: string,
   onStatus?: (status: string) => void
@@ -219,14 +168,6 @@ export async function approveToken(
   return receipt.hash;
 }
 
-/**
- * Create a new product listing
- * @param name - Product name
- * @param description - Product description
- * @param price - Price in TC (human-readable)
- * @param imageURI - IPFS URI or URL for the product image
- * @param onStatus - Callback for status updates
- */
 export async function createProduct(
   name: string,
   description: string,
@@ -292,19 +233,6 @@ export async function createProduct(
   return receipt.hash;
 }
 
-/**
- * Buy a product from the marketplace
- * 
- * NOTE: The contract does TWO safeTransferFrom calls:
- * 1. price - fee → seller
- * 2. fee → marketplace (platform fee)
- * 
- * So the buyer must approve the FULL price amount.
- * 
- * @param productId - The product ID to purchase
- * @param price - Full price in TC (human-readable) for approval
- * @param onStatus - Callback for status updates
- */
 export async function buyProduct(
   productId: number,
   price: string,
@@ -319,8 +247,6 @@ export async function buyProduct(
   onStatus?.('Waiting for purchase confirmation...');
   const receipt = await tx.wait();
   
-
-  // Parse ProductPurchased event and save the transaction to MongoDB
   let fromAddr = '';
   let toAddr: string | undefined;
   let amount = price;
@@ -350,7 +276,6 @@ export async function buyProduct(
     status: receipt.status === 1 ? 'confirmed' : 'failed',
   });
 
-  // Keep the stored product in sync: buyer becomes owner, listing closes
   if (receipt.status === 1 && toAddr) {
     await patchProductMeta(productId, {
       ownerAddress: fromAddr,
@@ -360,13 +285,6 @@ export async function buyProduct(
   return receipt.hash;
 }
 
-/**
- * Transfer product ownership to a new address (no token cost, just gas)
- * Note: This also sets the product as unlisted.
- * @param productId - The product ID to transfer
- * @param newOwner - The new owner's wallet address
- * @param onStatus - Callback for status updates
- */
 export async function transferOwnership(
   productId: number,
   newOwner: string,
@@ -381,8 +299,6 @@ export async function transferOwnership(
   onStatus?.('Waiting for transfer confirmation...');
   const receipt = await tx.wait();
   
-
-  // Save the ownership transfer to MongoDB
   await saveTransaction({
     txHash: receipt.hash,
     type: 'TRANSFER',
@@ -395,7 +311,6 @@ export async function transferOwnership(
     status: receipt.status === 1 ? 'confirmed' : 'failed',
   });
 
-  // Keep the stored product in sync with the on-chain transfer
   if (receipt.status === 1) {
     await patchProductMeta(productId, {
       ownerAddress: newOwner,
@@ -405,12 +320,6 @@ export async function transferOwnership(
   return receipt.hash;
 }
 
-/**
- * Toggle product listing status (owner only)
- * @param productId - The product ID
- * @param isListed - Whether the product should be listed
- * @param onStatus - Callback for status updates
- */
 export async function setListing(
   productId: number,
   isListed: boolean,
@@ -445,15 +354,7 @@ export async function setListing(
   return receipt.hash;
 }
 
-/**
- * Update product details (owner only)
- * @param productId - The product ID
- * @param name - New name
- * @param description - New description
- * @param price - New price in TC (human-readable)
- * @param imageURI - New image URI
- * @param onStatus - Callback for status updates
- */
+
 export async function updateProduct(
   productId: number,
   name: string,
@@ -493,11 +394,6 @@ export async function updateProduct(
   return receipt.hash;
 }
 
-/**
- * Update platform fee (owner only)
- * @param newFeeBps - New fee in basis points (100 = 1%, 10000 = 100%)
- * @param onStatus - Callback for status updates
- */
 export async function setPlatformFee(
   newFeeBps: number,
   onStatus?: (status: string) => void
@@ -525,11 +421,7 @@ export async function setPlatformFee(
   return receipt.hash;
 }
 
-/**
- * Update listing fee (owner only)
- * @param newFee - New listing fee in TC (human-readable, e.g., "10")
- * @param onStatus - Callback for status updates
- */
+
 export async function setListingFee(
   newFee: string,
   onStatus?: (status: string) => void
@@ -548,12 +440,6 @@ export async function setListingFee(
   return receipt.hash;
 }
 
-/**
- * Withdraw platform fees (owner only)
- * @param recipient - Address to receive the fees
- * @param amount - Amount in TC (human-readable) to withdraw
- * @param onStatus - Callback for status updates
- */
 export async function withdrawPlatformFees(
   recipient: string,
   amount: string,
@@ -585,9 +471,6 @@ export async function withdrawPlatformFees(
   return receipt.hash;
 }
 
-/**
- * Check allowance for marketplace
- */
 export async function checkAllowance(ownerAddress: string): Promise<string> {
   const provider = new BrowserProvider(window.ethereum!);
   const contract = new Contract(TONYSCOIN_ADDRESS, ERC20_ABI, provider);
@@ -595,9 +478,6 @@ export async function checkAllowance(ownerAddress: string): Promise<string> {
   return ethers.formatEther(allowance);
 }
 
-/**
- * Switch to Sepolia network
- */
 export async function switchToSepolia(): Promise<void> {
   if (!window.ethereum) throw new Error('No wallet detected');
   

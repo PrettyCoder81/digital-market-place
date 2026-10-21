@@ -1,7 +1,3 @@
-/**
- * BuyDialog
- * Purchase confirmation dialog with in-flight progress state.
- */
 import React from 'react';
 import {
   Alert,
