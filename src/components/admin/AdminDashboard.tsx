@@ -111,7 +111,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
     await runTransaction({
       action: async () => {
         setStatusMessage('Withdrawing platform fees...');
-        // withdrawPlatformFees takes (recipient, amount)
         const txHash = await withdrawFees(account!, amount, setStatusMessage);
         onShowStatus(`Fees withdrawn! TX: ${shortHash(txHash)}`, 'success');
         setWithdrawAmount('');
@@ -168,7 +167,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         Admin Dashboard
       </Typography>
 
-      {/* Loading Snackbar (shows only while the clicked button's transaction is in flight) */}
       <Snackbar open={loading} anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}>
         <Alert severity="info" sx={{ width: '100%' }} icon={<CircularProgress size={20} />}>
           {statusMessage || 'Processing...'}
@@ -220,7 +218,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         </Grid>
       </Grid>
 
-      {/* Contract Info */}
       <Card sx={{ mb: 3 }}>
         <CardContent>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 600 }}>
@@ -246,7 +243,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
         </CardContent>
       </Card>
 
-      {/* Update Platform Fee */}
       <FeeUpdateCard
         title={
           <>
@@ -314,7 +310,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onShowStatus }) => {
   );
 };
 
-// Local import kept at the bottom to avoid cluttering the main icon list
 import { AccountBalance as AccountBalanceIcon } from '@mui/icons-material';
 
 export default AdminDashboard;

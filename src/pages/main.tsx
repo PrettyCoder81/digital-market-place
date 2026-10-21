@@ -10,7 +10,6 @@ import { useThemeMode } from '../context/ThemeContext';
 import { useSnackbarContext } from '../context/SnackbarContext';
 import type { PageId } from '../types/marketplace';
 
-/** Map a pathname to the nav item that should appear active. */
 const pathToPage = (pathname: string): PageId => {
   if (pathname.startsWith('/create')) return 'create';
   if (pathname.startsWith('/admin')) return 'admin';
@@ -21,10 +20,6 @@ const pathToPage = (pathname: string): PageId => {
 export const pageToPath = (page: PageId): string =>
   page === 'marketplace' ? '/' : `/${page}`;
 
-/**
- * Shared shell rendered for every route via <Outlet />:
- * navbar, page container, footer and the global snackbar.
- */
 const RootLayout: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -32,7 +27,6 @@ const RootLayout: React.FC = () => {
   const { darkMode, toggleDarkMode } = useThemeMode();
   const { snackbar, closeSnackbar } = useSnackbarContext();
 
-  // Admin tab is only visible to the contract owner; keep the highlight sane.
   const currentPage: PageId = isOwner ? pathToPage(location.pathname) : 'marketplace';
 
   return (

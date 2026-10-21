@@ -1,9 +1,3 @@
-/**
- * useDarkMode
- * Owns the dark/light theme preference and persists it to localStorage.
- * Also syncs the `data-theme` attribute on <html> so any non-MUI (Tailwind /
- * plain CSS) styling can react to the current mode as well.
- */
 import { useCallback, useEffect, useState } from 'react';
 
 const STORAGE_KEY = 'darkMode';

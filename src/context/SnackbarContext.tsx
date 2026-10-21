@@ -5,10 +5,6 @@ type SnackbarContextValue = ReturnType<typeof useSnackbar>;
 
 const SnackbarContext = createContext<SnackbarContextValue | null>(null);
 
-/**
- * Provides a single snackbar state for the whole app so every route/page can
- * call `showStatus(...)` without prop drilling.
- */
 export const SnackbarProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const value = useSnackbar();
   return <SnackbarContext.Provider value={value}>{children}</SnackbarContext.Provider>;

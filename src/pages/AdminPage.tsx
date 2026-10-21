@@ -8,8 +8,6 @@ const AdminPage: React.FC = () => {
   const { isOwner } = useWeb3();
   const { showStatus } = useSnackbarContext();
 
-  // Only the contract owner (admin) can access the Admin dashboard;
-  // everyone else sees the marketplace listing instead.
   return isOwner ? (
     <AdminDashboard onShowStatus={showStatus} />
   ) : (
