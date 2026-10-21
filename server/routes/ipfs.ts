@@ -1,13 +1,13 @@
-require('dotenv').config();
+import { Router } from 'express';
+import multer from 'multer';
+import config from '../config';
+import { ApiError, MulterRequest, PinataPinResponse, getMulterFile } from '../types';
 
-const express = require('express');
-const multer = require('multer');
-const router = express.Router();
-const config = require('../config');
+const router: Router = Router();
 
 const PINATA_API_BASE = 'https://api.pinata.cloud';
 
-function normalizeGateway(gateway) {
+function normalizeGateway(gateway: string): string {
   if (!gateway) {
     return 'https://gateway.pinata.cloud';
   }
@@ -19,14 +19,11 @@ function normalizeGateway(gateway) {
   return `https://${gateway.replace(/^\/+/, '').replace(/\/$/, '')}`;
 }
 
-function getUploadedFile(req) {
-  if (req.file) return req.file;
-  if (req.files?.file?.[0]) return req.files.file[0];
-  if (req.files?.image?.[0]) return req.files.image[0];
-  return null;
+function getUploadedFile(req: MulterRequest): Express.Multer.File | null {
+  return getMulterFile(req);
 }
 
-async function pinataPost(path, jwt, bodyAsJson) {
+async function pinataPost(path: string, jwt: string, bodyAsJson: unknown): Promise<PinataPinResponse> {
   const response = await fetch(`${PINATA_API_BASE}${path}`, {
     method: 'POST',
     headers: {
@@ -38,17 +35,28 @@ async function pinataPost(path, jwt, bodyAsJson) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    const error = new Error(`Pinata API error (${response.status}): ${text || response.statusText}`);
+    const error: ApiError = new Error(
+      `Pinata API error (${response.status}): ${text || response.statusText}`
+    );
     error.status = response.status;
     throw error;
   }
 
-  return response.json();
+  return (await response.json()) as PinataPinResponse;
 }
 
-async function pinFileToIpfs(jwt, buffer, fileName, mimeType) {
+async function pinFileToIpfs(
+  jwt: string,
+  buffer: Buffer,
+  fileName?: string,
+  mimeType?: string
+): Promise<PinataPinResponse> {
   const form = new FormData();
-  form.append('file', new Blob([buffer], { type: mimeType || 'application/octet-stream' }), fileName || 'upload');
+  form.append(
+    'file',
+    new Blob([new Uint8Array(buffer)], { type: mimeType || 'application/octet-stream' }),
+    fileName || 'upload'
+  );
 
   const response = await fetch(`${PINATA_API_BASE}/pinning/pinFileToIPFS`, {
     method: 'POST',
@@ -60,12 +68,14 @@ async function pinFileToIpfs(jwt, buffer, fileName, mimeType) {
 
   if (!response.ok) {
     const text = await response.text().catch(() => '');
-    const error = new Error(`Pinata file upload error (${response.status}): ${text || response.statusText}`);
+    const error: ApiError = new Error(
+      `Pinata file upload error (${response.status}): ${text || response.statusText}`
+    );
     error.status = response.status;
     throw error;
   }
 
-  return response.json();
+  return (await response.json()) as PinataPinResponse;
 }
 
 const upload = multer({
@@ -73,7 +83,7 @@ const upload = multer({
   limits: {
     fileSize: config.upload.maxFileSizeBytes,
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     if (config.upload.allowedMimeTypes.includes(file.mimetype)) {
       cb(null, true);
       return;
@@ -83,30 +93,37 @@ const upload = multer({
   },
 });
 
-function publicUrl(cid) {
+function publicUrl(cid: string): string {
   return `${normalizeGateway(config.pinata.gateway)}/ipfs/${cid}`;
 }
 
 router.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'image', maxCount: 1 },
-]), async (req, res) => {
+]), async (req: MulterRequest, res) => {
   try {
     const uploadedFile = getUploadedFile(req);
 
     if (!uploadedFile) {
-      return res.status(400).json({ error: 'No file uploaded' });
+      res.status(400).json({ error: 'No file uploaded' });
+      return;
     }
 
     if (!config.pinata.jwt) {
-      return res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
+      res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
+      return;
     }
 
-    const result = await pinFileToIpfs(config.pinata.jwt, uploadedFile.buffer, uploadedFile.originalname, uploadedFile.mimetype);
-    const ipfsHash = result.IpfsHash || result.cid;
+    const result = await pinFileToIpfs(
+      config.pinata.jwt,
+      uploadedFile.buffer,
+      uploadedFile.originalname,
+      uploadedFile.mimetype
+    );
+    const ipfsHash = result.IpfsHash || result.cid || '';
     const ipfsUrl = publicUrl(ipfsHash);
 
-    console.log(`✅ File uploaded to IPFS: ${ipfsHash}`);
+    console.log(`File uploaded to IPFS: ${ipfsHash}`);
 
     res.json({
       success: true,
@@ -118,9 +135,10 @@ router.post('/upload', upload.fields([
     });
   } catch (error) {
     console.error('IPFS upload error:', error);
+    const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({
       error: 'Failed to upload file to IPFS',
-      message: error.message,
+      message,
     });
   }
 });
@@ -130,15 +148,19 @@ router.post('/upload-json', async (req, res) => {
     const { data } = req.body;
 
     if (!data) {
-      return res.status(400).json({ error: 'No data provided' });
+      res.status(400).json({ error: 'No data provided' });
+      return;
     }
 
     if (!config.pinata.jwt) {
-      return res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
+      res.status(500).json({ error: 'IPFS upload not configured (missing PINATA_JWT)' });
+      return;
     }
 
-    const result = await pinataPost('/pinning/pinJSONToIPFS', config.pinata.jwt, { pinataContent: data });
-    const ipfsHash = result.IpfsHash || result.cid;
+    const result = await pinataPost('/pinning/pinJSONToIPFS', config.pinata.jwt, {
+      pinataContent: data,
+    });
+    const ipfsHash = result.IpfsHash || result.cid || '';
     const ipfsUrl = publicUrl(ipfsHash);
 
     res.json({
@@ -148,11 +170,12 @@ router.post('/upload-json', async (req, res) => {
     });
   } catch (error) {
     console.error('JSON upload error:', error);
+    const message = error instanceof Error ? error.message : String(error);
     res.status(500).json({
       error: 'Failed to upload JSON to IPFS',
-      message: error.message,
+      message,
     });
   }
 });
 
-module.exports = router;
+export default router;

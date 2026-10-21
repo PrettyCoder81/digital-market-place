@@ -1,7 +1,71 @@
-const mongoose = require('mongoose');
+import mongoose, { Document, Model, Schema } from 'mongoose';
 
-// user schema
-const userSchema = new mongoose.Schema(
+export type UserRole = 'user' | 'admin';
+
+export interface IUser extends Document {
+  walletAddress: string;
+  role: UserRole;
+  username?: string;
+  lastActive: Date;
+}
+
+export interface IProductMetadata extends Document {
+  productId: number;
+  name: string;
+  description: string;
+  ipfsHash: string;
+  ipfsUrl: string;
+  ownerAddress: string;
+  price: string;
+  imageURI: string;
+  isListed: boolean;
+  txHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export type TransactionType =
+  | 'CREATE'
+  | 'MINT'
+  | 'BUY'
+  | 'SELL'
+  | 'TRANSFER'
+  | 'WITHDRAW'
+  | 'FEE_UPDATE'
+  | 'LISTING'
+  | 'UNLISTING';
+
+export type TransactionStatus = 'pending' | 'confirmed' | 'failed';
+
+export interface ITransaction extends Document {
+  txHash: string;
+  type: TransactionType;
+  productId?: number;
+  from: string;
+  to?: string;
+  amount: string;
+  blockNumber?: number;
+  gasUsed?: string;
+  status: TransactionStatus;
+  timestamp: Date;
+  updatedAt: Date;
+}
+
+export const TRANSACTION_TYPES: TransactionType[] = [
+  'CREATE',
+  'MINT',
+  'BUY',
+  'SELL',
+  'TRANSFER',
+  'WITHDRAW',
+  'FEE_UPDATE',
+  'LISTING',
+  'UNLISTING',
+];
+
+const walletAddressRegex = /^0x[a-fA-F0-9]{40}$/;
+
+const userSchema: Schema<IUser> = new Schema(
   {
     walletAddress: {
       type: String,
@@ -9,7 +73,7 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       index: true,
-      match: [/^0x[a-fA-F0-9]{40}$/, 'Invalid wallet address'],
+      match: [walletAddressRegex, 'Invalid wallet address'],
     },
     role: {
       type: String,
@@ -35,8 +99,7 @@ userSchema.pre('save', function (next) {
   next();
 });
 
-// product Meta schema
-const productMetadataSchema = new mongoose.Schema(
+const productMetadataSchema: Schema<IProductMetadata> = new Schema(
   {
     productId: {
       type: Number,
@@ -70,14 +133,14 @@ const productMetadataSchema = new mongoose.Schema(
       required: true,
       lowercase: true,
       index: true,
-      match: [/^0x[a-fA-F0-9]{40}$/, 'Invalid owner address'],
+      match: [walletAddressRegex, 'Invalid owner address'],
     },
     price: {
-      type: String, // in TC, stored as string to preserve precision
+      type: String,
       required: true,
     },
     imageURI: {
-      type: String, // full IPFS URI as stored on-chain
+      type: String,
       default: '',
     },
     isListed: {
@@ -93,8 +156,7 @@ const productMetadataSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// transaction schema
-const transactionSchema = new mongoose.Schema(
+const transactionSchema: Schema<ITransaction> = new Schema(
   {
     txHash: {
       type: String,
@@ -104,7 +166,7 @@ const transactionSchema = new mongoose.Schema(
     },
     type: {
       type: String,
-      enum: ['CREATE', 'MINT', 'BUY', 'SELL', 'TRANSFER', 'WITHDRAW', 'FEE_UPDATE', 'LISTING', 'UNLISTING'],
+      enum: TRANSACTION_TYPES,
       required: true,
       index: true,
     },
@@ -123,7 +185,7 @@ const transactionSchema = new mongoose.Schema(
       lowercase: true,
     },
     amount: {
-      type: String, // Amount in TC (string for precision)
+      type: String,
       default: '0',
     },
     blockNumber: {
@@ -142,13 +204,12 @@ const transactionSchema = new mongoose.Schema(
   { timestamps: { createdAt: 'timestamp', updatedAt: 'updatedAt' } }
 );
 
-// model creation
-const User = mongoose.model('User', userSchema);
-const ProductMetadata = mongoose.model('ProductMetadata', productMetadataSchema);
-const Transaction = mongoose.model('Transaction', transactionSchema);
-
-module.exports = {
-  User,
-  ProductMetadata,
-  Transaction,
-};
+export const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
+export const ProductMetadata: Model<IProductMetadata> = mongoose.model<IProductMetadata>(
+  'ProductMetadata',
+  productMetadataSchema
+);
+export const Transaction: Model<ITransaction> = mongoose.model<ITransaction>(
+  'Transaction',
+  transactionSchema
+);

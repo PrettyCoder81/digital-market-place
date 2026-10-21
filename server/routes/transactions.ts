@@ -1,18 +1,26 @@
-const express = require('express');
-const router = express.Router();
-const { Transaction } = require('../models');
+import { Router, Request, Response, NextFunction } from 'express';
+import { Transaction, TRANSACTION_TYPES, TransactionType } from '../models';
+import { Pagination } from '../types';
 
-router.get('/', async (req, res, next) => {
+const router: Router = Router();
+
+interface ByTypeStat {
+  _id: string;
+  count: number;
+  totalAmount: number;
+}
+
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 200);
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 50, 1), 200);
     const { type, productId, from, to, status } = req.query;
 
-    const filter = {};
-    if (type) filter.type = type.toUpperCase();
-    if (productId !== undefined && productId !== '') filter.productId = parseInt(productId, 10);
-    if (from) filter.from = from.toLowerCase();
-    if (to) filter.to = to.toLowerCase();
+    const filter: Record<string, unknown> = {};
+    if (type) filter.type = String(type).toUpperCase();
+    if (productId !== undefined && productId !== '') filter.productId = parseInt(String(productId), 10);
+    if (from) filter.from = String(from).toLowerCase();
+    if (to) filter.to = String(to).toLowerCase();
     if (status) filter.status = status;
 
     const [transactions, total] = await Promise.all([
@@ -23,25 +31,26 @@ router.get('/', async (req, res, next) => {
       Transaction.countDocuments(filter),
     ]);
 
-    res.json({
-      success: true,
-      transactions,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit),
-      },
-    });
+    const pagination: Pagination = {
+      page,
+      limit,
+      total,
+      pages: Math.ceil(total / limit),
+    };
+
+    res.json({ success: true, transactions, pagination });
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/stats', async (req, res, next) => {
+router.get('/stats', async (req: Request, res: Response, next: NextFunction) => {
   try {
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
     const [byType, totalTransactions, todayCount] = await Promise.all([
-      Transaction.aggregate([
+      Transaction.aggregate<ByTypeStat>([
         {
           $group: {
             _id: '$type',
@@ -54,11 +63,7 @@ router.get('/stats', async (req, res, next) => {
         { $sort: { count: -1 } },
       ]),
       Transaction.countDocuments(),
-      (() => {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        return Transaction.countDocuments({ timestamp: { $gte: todayStart } });
-      })(),
+      Transaction.countDocuments({ timestamp: { $gte: todayStart } }),
     ]);
 
     res.json({
@@ -74,11 +79,12 @@ router.get('/stats', async (req, res, next) => {
   }
 });
 
-router.get('/:txHash', async (req, res, next) => {
+router.get('/:txHash', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const transaction = await Transaction.findOne({ txHash: req.params.txHash });
     if (!transaction) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      res.status(404).json({ error: 'Transaction not found' });
+      return;
     }
     res.json({ success: true, transaction });
   } catch (error) {
@@ -86,33 +92,33 @@ router.get('/:txHash', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { txHash, type, productId, from, to, amount, blockNumber, gasUsed, status } = req.body;
 
-    const VALID_TYPES = ['CREATE', 'MINT', 'BUY', 'SELL', 'TRANSFER', 'WITHDRAW', 'FEE_UPDATE', 'LISTING', 'UNLISTING'];
-
     if (!txHash || !type || !from) {
-      return res.status(400).json({ error: 'Missing required fields: txHash, type, from' });
+      res.status(400).json({ error: 'Missing required fields: txHash, type, from' });
+      return;
     }
-    if (!VALID_TYPES.includes(String(type).toUpperCase())) {
-      return res.status(400).json({
-        error: `Invalid transaction type "${type}". Valid types: ${VALID_TYPES.join(', ')}`,
+    if (!TRANSACTION_TYPES.includes(String(type).toUpperCase() as TransactionType)) {
+      res.status(400).json({
+        error: `Invalid transaction type "${type}". Valid types: ${TRANSACTION_TYPES.join(', ')}`,
       });
+      return;
     }
 
-    // Idempotency: if already logged, return existing record
     const existing = await Transaction.findOne({ txHash });
     if (existing) {
-      return res.json({ success: true, transaction: existing, message: 'Transaction already logged' });
+      res.json({ success: true, transaction: existing, message: 'Transaction already logged' });
+      return;
     }
 
     const transaction = await Transaction.create({
       txHash,
-      type: type.toUpperCase(),
+      type: String(type).toUpperCase(),
       productId: productId !== undefined && productId !== null ? parseInt(productId, 10) : undefined,
-      from: from.toLowerCase(),
-      to: to ? to.toLowerCase() : undefined,
+      from: String(from).toLowerCase(),
+      to: to ? String(to).toLowerCase() : undefined,
       amount: amount !== undefined ? String(amount) : '0',
       blockNumber: blockNumber !== undefined ? Number(blockNumber) : undefined,
       gasUsed: gasUsed !== undefined ? String(gasUsed) : undefined,
@@ -125,10 +131,10 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.patch('/:txHash', async (req, res, next) => {
+router.patch('/:txHash', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { status, blockNumber, gasUsed } = req.body;
-    const updateData = {};
+    const updateData: Record<string, unknown> = {};
     if (status) updateData.status = status;
     if (blockNumber !== undefined) updateData.blockNumber = Number(blockNumber);
     if (gasUsed !== undefined) updateData.gasUsed = String(gasUsed);
@@ -140,7 +146,8 @@ router.patch('/:txHash', async (req, res, next) => {
     );
 
     if (!transaction) {
-      return res.status(404).json({ error: 'Transaction not found' });
+      res.status(404).json({ error: 'Transaction not found' });
+      return;
     }
 
     res.json({ success: true, transaction });
@@ -149,4 +156,4 @@ router.patch('/:txHash', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,18 +1,26 @@
-const express = require('express');
-const router = express.Router();
-const { ProductMetadata, User } = require('../models');
+import { Router, Request, Response, NextFunction } from 'express';
+import { ProductMetadata } from '../models';
+import { Pagination } from '../types';
 
-router.get('/', async (req, res, next) => {
+const router: Router = Router();
+
+interface ProductListResponse {
+  success: boolean;
+  products: unknown[];
+  pagination: Pagination;
+}
+
+router.get('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 20, 1), 100);
+    const page = Math.max(parseInt(req.query.page as string) || 1, 1);
+    const limit = Math.min(Math.max(parseInt(req.query.limit as string) || 20, 1), 100);
     const { isListed, owner, search } = req.query;
 
-    const filter = {};
+    const filter: Record<string, unknown> = {};
     if (isListed !== undefined && isListed !== '') filter.isListed = String(isListed) === 'true';
-    if (owner) filter.ownerAddress = owner.toLowerCase();
+    if (owner) filter.ownerAddress = String(owner).toLowerCase();
     if (search) {
-      filter.name = { $regex: search, $options: 'i' };
+      filter.name = { $regex: String(search), $options: 'i' };
     }
 
     const [products, total] = await Promise.all([
@@ -23,7 +31,7 @@ router.get('/', async (req, res, next) => {
       ProductMetadata.countDocuments(filter),
     ]);
 
-    res.json({
+    const body: ProductListResponse = {
       success: true,
       products,
       pagination: {
@@ -32,22 +40,26 @@ router.get('/', async (req, res, next) => {
         total,
         pages: Math.ceil(total / limit),
       },
-    });
+    };
+
+    res.json(body);
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = parseInt(req.params.id, 10);
     if (Number.isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product id' });
+      res.status(400).json({ error: 'Invalid product id' });
+      return;
     }
 
     const product = await ProductMetadata.findOne({ productId });
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      res.status(404).json({ error: 'Product not found' });
+      return;
     }
 
     res.json({ success: true, product });
@@ -56,23 +68,17 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const { productId, name, description, ipfsHash, ipfsUrl, ownerAddress, price, txHash, imageURI } = req.body;
 
     if (productId === undefined || !name || !ownerAddress || !price || !txHash) {
-      return res.status(400).json({
+      res.status(400).json({
         error: 'Missing required fields: productId, name, ownerAddress, price, txHash',
       });
+      return;
     }
 
-    // Ensure the owning user record exists
-    let user = await User.findOne({ walletAddress: ownerAddress.toLowerCase() });
-    if (!user) {
-      user = await User.create({ walletAddress: ownerAddress.toLowerCase() });
-    }
-
-    // Upsert product metadata
     const product = await ProductMetadata.findOneAndUpdate(
       { productId: parseInt(productId, 10) },
       {
@@ -82,7 +88,7 @@ router.post('/', async (req, res, next) => {
         ipfsHash: ipfsHash || '',
         ipfsUrl: ipfsUrl || '',
         imageURI: imageURI || '',
-        ownerAddress: ownerAddress.toLowerCase(),
+        ownerAddress: String(ownerAddress).toLowerCase(),
         price: String(price),
         txHash,
         isListed: true,
@@ -96,29 +102,29 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.patch('/:id', async (req: Request, res: Response, next: NextFunction) => {
   try {
     const productId = parseInt(req.params.id, 10);
     if (Number.isNaN(productId)) {
-      return res.status(400).json({ error: 'Invalid product id' });
+      res.status(400).json({ error: 'Invalid product id' });
+      return;
     }
 
     const { isListed, ownerAddress, price, name, description } = req.body;
-    const updateData = {};
+    const updateData: Record<string, unknown> = {};
     if (isListed !== undefined) updateData.isListed = !!isListed;
-    if (ownerAddress) updateData.ownerAddress = ownerAddress.toLowerCase();
+    if (ownerAddress) updateData.ownerAddress = String(ownerAddress).toLowerCase();
     if (price !== undefined) updateData.price = String(price);
     if (name) updateData.name = name;
     if (description !== undefined) updateData.description = description;
 
-    const product = await ProductMetadata.findOneAndUpdate(
-      { productId },
-      updateData,
-      { new: true }
-    );
+    const product = await ProductMetadata.findOneAndUpdate({ productId }, updateData, {
+      new: true,
+    });
 
     if (!product) {
-      return res.status(404).json({ error: 'Product not found' });
+      res.status(404).json({ error: 'Product not found' });
+      return;
     }
 
     res.json({ success: true, product });
@@ -127,4 +133,4 @@ router.patch('/:id', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;
